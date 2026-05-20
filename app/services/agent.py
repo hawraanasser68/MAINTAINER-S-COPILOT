@@ -155,7 +155,7 @@ async def _run_anthropic(
 
         tool_results: list[dict[str, Any]] = []
         for block in tool_use_blocks:
-            tool_result = await execute_tool(block.name, block.input, session, user_id=user_id)
+            tool_result = await execute_tool(block.name, block.input, session, user_id=user_id, conversation_id=conversation_id)
             tool_calls_made.append({"tool": block.name, "args": block.input, "result": tool_result})
             tool_results.append({
                 "type": "tool_result",
@@ -218,7 +218,7 @@ async def _run_groq(
     msg_lower = user_message.lower()
     is_single_tool = any(msg_lower.startswith(p) for p in _SINGLE_TOOL_PREFIXES)
     if not is_single_tool and any(t in msg_lower for t in _RAG_TRIGGERS):
-        rag_result_str = await execute_tool("rag_search", {"query": user_message}, session, user_id=user_id)
+        rag_result_str = await execute_tool("rag_search", {"query": user_message}, session, user_id=user_id, conversation_id=conversation_id)
         tool_calls_made.append({"tool": "rag_search", "args": {"query": user_message}, "result": rag_result_str})
         synthesis_msgs = [
             *messages_for_llm[:-1],
@@ -285,7 +285,7 @@ async def _run_groq(
             except json.JSONDecodeError:
                 args = {}
 
-            tool_result = await execute_tool(fn_name, args, session, user_id=user_id)
+            tool_result = await execute_tool(fn_name, args, session, user_id=user_id, conversation_id=conversation_id)
             tool_calls_made.append({"tool": fn_name, "args": args, "result": tool_result})
             messages_for_llm.append({"role": "tool", "tool_call_id": tc.id, "content": tool_result})
 

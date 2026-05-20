@@ -8,15 +8,20 @@ internal services.
 
 from __future__ import annotations
 
+import json
 import os
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.infra import minio_client as minio
 from app.services import long_term_memory as ltm
 from app.services.rag import run_rag
+
+_RAG_SNAPSHOT_BUCKET = "rag-snapshots"
 
 _MODELSERVER_URL = os.environ.get("MODELSERVER_URL", "http://modelserver:8001")
 _HTTP_TIMEOUT = 30.0
@@ -142,6 +147,7 @@ async def execute_tool(
     arguments: dict[str, Any],
     session: AsyncSession,
     user_id: uuid.UUID | None = None,
+    conversation_id: uuid.UUID | str | None = None,
 ) -> str:
     """
     Dispatch to the correct executor and return a string result for the
@@ -171,13 +177,41 @@ async def execute_tool(
             top_k = int(arguments.get("top_k", 5))
             rag_result = await run_rag(session, query, top_k=top_k, use_hyde=True)
             chunks = rag_result.get("chunks", [])
+
+            # Upload snapshot to MinIO (non-blocking — failure must not affect the user)
+            try:
+                snapshot = {
+                    "conversation_id": str(conversation_id) if conversation_id else None,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "query": query,
+                    "rewritten_query": rag_result.get("rewritten_query"),
+                    "top_k": top_k,
+                    "chunks": [
+                        {
+                            "number": c.get("number"),
+                            "title": c.get("title"),
+                            "rerank_score": c.get("rerank_score"),
+                            "rrf_score": c.get("rrf_score"),
+                        }
+                        for c in chunks
+                    ],
+                    "answer": rag_result.get("answer"),
+                    "model_used": rag_result.get("model_used"),
+                    "latency_ms": rag_result.get("latency_ms"),
+                }
+                ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+                key = f"{conversation_id or 'unknown'}/{ts}.json"
+                minio.upload(_RAG_SNAPSHOT_BUCKET, key, json.dumps(snapshot, indent=2))
+            except Exception:
+                pass  # snapshot upload failure is never user-visible
+
             if not chunks:
                 return "No similar issues found."
             lines = []
             for c in chunks:
                 num = c.get("number", "?")
                 title = c.get("title", "")
-                score = c.get("score", 0)
+                score = c.get("rerank_score") or c.get("rrf_score") or 0
                 lines.append(f"- Issue #{num}: {title} (score: {score:.3f})")
             header = f"Found {len(chunks)} similar issues:\n"
             return header + "\n".join(lines) + f"\n\n**Answer:** {rag_result.get('answer', '')}"

@@ -12,7 +12,7 @@ import time
 from collections import Counter
 from datetime import datetime, timezone
 
-from github import Github, RateLimitExceededException
+from github import Github
 
 # ── Label mapping ─────────────────────────────────────────────────────────────
 LABEL_MAP: dict[str, str] = {
@@ -67,7 +67,7 @@ def evaluate_repo(gh: Github, repo_name: str) -> dict:
             continue  # skip PRs
         total += 1
 
-        label_names = [l.name for l in issue.labels]
+        label_names = [lbl.name for lbl in issue.labels]
         cls = map_labels(label_names)
 
         if cls:

@@ -1,7 +1,6 @@
-from io import BytesIO
 
 import boto3
-from botocore.exceptions import ClientError, EndpointResolutionError
+from botocore.exceptions import ClientError
 
 from app.domain.exceptions import InfrastructureError, NotFoundError
 

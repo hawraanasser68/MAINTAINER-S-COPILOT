@@ -20,16 +20,16 @@ from pathlib import Path
 # Force line-buffered output so progress is visible in background runs
 sys.stdout.reconfigure(line_buffering=True)
 
-import numpy as np
-import torch
-from sklearn.metrics import accuracy_score, classification_report, f1_score
-from sklearn.utils.class_weight import compute_class_weight
-from torch import nn
-from torch.utils.data import DataLoader, Dataset
-from transformers import DistilBertForSequenceClassification, DistilBertTokenizerFast
+import numpy as np  # noqa: E402
+import torch  # noqa: E402
+from sklearn.metrics import accuracy_score, classification_report, f1_score  # noqa: E402
+from sklearn.utils.class_weight import compute_class_weight  # noqa: E402
+from torch import nn  # noqa: E402
+from torch.utils.data import DataLoader, Dataset  # noqa: E402
+from transformers import DistilBertForSequenceClassification, DistilBertTokenizerFast  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from scripts.preprocess import CLASSES, load_split
+from scripts.preprocess import CLASSES, load_split  # noqa: E402
 
 MODEL_NAME = "distilbert-base-uncased"
 OUTPUT_DIR = Path("models/classifier")
@@ -48,7 +48,7 @@ class IssueDataset(Dataset):
             padding="max_length",
             return_tensors="pt",
         )
-        self.labels = torch.tensor([LABEL2ID[l] for l in labels], dtype=torch.long)
+        self.labels = torch.tensor([LABEL2ID[lbl] for lbl in labels], dtype=torch.long)
 
     def __len__(self) -> int:
         return len(self.labels)
@@ -144,7 +144,7 @@ def train(epochs: int, batch_size: int, lr: float) -> None:
                 )
                 preds = outputs.logits.argmax(dim=-1).cpu().numpy()
                 all_preds.extend([ID2LABEL[p] for p in preds])
-                all_labels.extend([ID2LABEL[l.item()] for l in batch["labels"]])
+                all_labels.extend([ID2LABEL[lbl.item()] for lbl in batch["labels"]])
 
         val_f1  = f1_score(all_labels, all_preds, average="macro", labels=CLASSES)
         val_acc = accuracy_score(all_labels, all_preds)
@@ -177,7 +177,7 @@ def train(epochs: int, batch_size: int, lr: float) -> None:
             )
             preds = outputs.logits.argmax(dim=-1).cpu().numpy()
             all_preds.extend([ID2LABEL[p] for p in preds])
-            all_labels.extend([ID2LABEL[l.item()] for l in batch["labels"]])
+            all_labels.extend([ID2LABEL[lbl.item()] for lbl in batch["labels"]])
 
     latency_ms = (time.perf_counter() - t0) / len(test_texts) * 1000
     test_f1  = f1_score(all_labels, all_preds, average="macro", labels=CLASSES)

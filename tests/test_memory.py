@@ -7,7 +7,6 @@ Long-term tests use mocked SQLAlchemy session rows.
 
 from __future__ import annotations
 
-import json
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 

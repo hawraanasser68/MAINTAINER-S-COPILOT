@@ -95,7 +95,7 @@ def fetch() -> None:
             if fetched >= MAX_ISSUES:
                 break
 
-    print(f"\nDone.")
+    print("\nDone.")
     print(f"  Fetched  : {fetched} issues → {OUTPUT}")
     print(f"  Skipped  : {skipped_pr} PRs, {skipped_no_label} unlabelled")
 

@@ -57,7 +57,7 @@ def main() -> None:
     if llm:
         t = llm["test"]
         rows.append({
-            "model": f"Claude Haiku (zero-shot)",
+            "model": "Claude Haiku (zero-shot)",
             "accuracy": t["accuracy"],
             "macro_f1": t["macro_f1"],
             "per_class": t["per_class_f1"],
@@ -74,8 +74,8 @@ def main() -> None:
     rows.sort(key=lambda r: r["macro_f1"], reverse=True)
 
     print("\n## Three-Way Model Comparison\n")
-    print(f"| Model | Accuracy | Macro-F1 | bug F1 | feature F1 | docs F1 | question F1 | Latency | Cost |")
-    print(f"|---|---|---|---|---|---|---|---|---|")
+    print("| Model | Accuracy | Macro-F1 | bug F1 | feature F1 | docs F1 | question F1 | Latency | Cost |")
+    print("|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         pc = r["per_class"]
         print(

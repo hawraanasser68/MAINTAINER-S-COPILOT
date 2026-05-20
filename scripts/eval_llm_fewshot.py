@@ -162,7 +162,7 @@ def main() -> None:
         preds.append(pred)
         latencies.append(latency_ms)
         if (i + 1) % 20 == 0:
-            acc_so_far = sum(p == l for p, l in zip(preds, sample_labels[:len(preds)])) / len(preds)
+            acc_so_far = sum(p == label for p, label in zip(preds, sample_labels[:len(preds)])) / len(preds)
             status = "✓" if pred == true_label else "✗"
             print(f"  [{i+1}/{len(sample_texts)}] running_acc={acc_so_far:.3f}  {status} pred={pred} true={true_label}")
 

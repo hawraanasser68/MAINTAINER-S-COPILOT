@@ -9,9 +9,6 @@ This test suite MUST pass before any CI gate is enabled.
 
 from __future__ import annotations
 
-import io
-import logging
-import uuid
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -160,11 +157,11 @@ async def test_memory_write_redacts_content() -> None:
     # Patch embed_query to avoid loading the model (imported as async_embed_query)
     with patch("app.services.long_term_memory.async_embed_query", return_value=[0.0] * 384):
         # Patch redact to be the real implementation
-        from app.services.long_term_memory import write_memory
         # write_memory does NOT call redact internally — the redaction layer
         # is called at the service boundary (chat endpoint) before calling write_memory.
         # This test verifies redact() strips the key so the caller CAN redact before storing.
         from app.infra.redaction import redact
+        from app.services.long_term_memory import write_memory
         safe_content = redact(content_with_secret)
         await write_memory(session, safe_content, user_id=None)
 

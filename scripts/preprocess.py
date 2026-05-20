@@ -6,7 +6,6 @@ Usage:
 """
 
 import json
-import re
 from pathlib import Path
 
 CLASSES = ["bug", "feature", "docs", "question"]

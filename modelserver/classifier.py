@@ -6,8 +6,8 @@ Raises RuntimeError if weights are missing or SHA-256 mismatches.
 import hashlib
 import json
 import time
-from pathlib import Path
 from functools import lru_cache
+from pathlib import Path
 
 import torch
 from transformers import DistilBertForSequenceClassification, DistilBertTokenizerFast

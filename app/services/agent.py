@@ -18,8 +18,8 @@ import anthropic as _anthropic_sdk
 from groq import BadRequestError, Groq
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services import short_term_memory as stm
 from app.services import long_term_memory as ltm
+from app.services import short_term_memory as stm
 from app.services.tools import TOOL_SCHEMAS, execute_tool
 
 _MAX_TOOL_ROUNDS = 5

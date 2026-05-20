@@ -75,7 +75,7 @@ def _minio_upload(report: dict[str, Any], run_id: str) -> str | None:
     """Upload eval_report.json to MinIO; return the key or None on failure."""
     try:
         import boto3
-        from botocore.exceptions import BotoCoreError, ClientError
+        from botocore.exceptions import ClientError
 
         endpoint = os.environ.get("MINIO_ENDPOINT", "http://localhost:9000")
         access = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
@@ -107,7 +107,6 @@ def _minio_get_previous(run_id: str) -> dict[str, Any] | None:
     """Download the most recent previous eval_report from MinIO, or None."""
     try:
         import boto3
-        from botocore.exceptions import BotoCoreError, ClientError
 
         endpoint = os.environ.get("MINIO_ENDPOINT", "http://localhost:9000")
         access = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
@@ -190,7 +189,6 @@ def main() -> None:
     finetuned_test = finetuned_card.get("metrics", {})
     finetuned_per_class = finetuned_test.get("per_class_f1", {})
     classical_test = classical_metrics.get("test", {})
-    classical_per_class = classical_test.get("per_class_f1", {})
     llm_test = llm_metrics.get("test", {})
     rag_advanced = rag_metrics.get("advanced_hybrid_rerank", {})
 
@@ -233,9 +231,9 @@ def main() -> None:
             _check(failures, deltas, f"rag.{metric}", None, thr)
 
     # ── Validate golden set exists and is non-empty ──────────────────────────
-    golden = [json.loads(l) for l in golden_path.read_text().splitlines() if l.strip()]
+    golden = [json.loads(line) for line in golden_path.read_text().splitlines() if line.strip()]
     golden_hl = [g for g in golden if g.get("hand_labelled")]
-    print(f"\n── Golden set ──")
+    print("\n── Golden set ──")
     print(f"  ✓ golden_rag.jsonl: {len(golden)} examples, {len(golden_hl)} hand-labelled")
     if len(golden_hl) < 5:
         failures.append(f"golden_rag.jsonl: only {len(golden_hl)} hand-labelled examples (minimum 5 required)")

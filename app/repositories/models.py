@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import JSON, TIMESTAMP, VARCHAR, Boolean, Integer, Text, func
+from sqlalchemy import JSON, TIMESTAMP, VARCHAR, Integer, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 

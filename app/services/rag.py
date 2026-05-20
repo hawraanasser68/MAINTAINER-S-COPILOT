@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.infra.bm25_index import get_index
 from app.repositories.issue_repo import search_dense
 from app.services.query_rewriter import rewrite_query
-from app.services.retrieval import embed_query, hybrid_search, rerank, reciprocal_rank_fusion
+from app.services.retrieval import embed_query, reciprocal_rank_fusion, rerank
 
 _groq: Groq | None = None
 

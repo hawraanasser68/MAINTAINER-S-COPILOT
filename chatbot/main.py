@@ -2,10 +2,10 @@
 
 import streamlit as st
 
-from chatbot.pages.login import login_page
-from chatbot.pages.chat import chat_page
-from chatbot.pages.memory import memory_page
 from chatbot.pages.admin import admin_page
+from chatbot.pages.chat import chat_page
+from chatbot.pages.login import login_page
+from chatbot.pages.memory import memory_page
 
 st.set_page_config(
     page_title="Maintainer's Copilot",

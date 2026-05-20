@@ -14,9 +14,6 @@ from modelserver.classifier import classify, load_model
 from modelserver.ner import Entity, extract_entities
 from modelserver.summarize import summarize_issue
 
-
-
-
 # ── Request / Response models ─────────────────────────────────────────────────
 
 class ClassifyRequest(BaseModel):

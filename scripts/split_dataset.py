@@ -11,7 +11,6 @@ from collections import Counter
 from pathlib import Path
 
 import pandas as pd
-from sklearn.model_selection import StratifiedShuffleSplit
 
 INPUT = Path("data/raw_issues.jsonl")
 OUTPUT_DIR = Path("data/splits")

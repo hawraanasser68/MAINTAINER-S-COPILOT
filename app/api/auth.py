@@ -7,13 +7,11 @@ from __future__ import annotations
 
 import os
 import uuid
-from typing import AsyncGenerator
 
 from fastapi import Depends
-from fastapi_users import FastAPIUsers, BaseUserManager, UUIDIDMixin
+from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 from fastapi_users.db import SQLAlchemyUserDatabase
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infra.database import get_session

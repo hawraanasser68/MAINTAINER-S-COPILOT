@@ -14,7 +14,7 @@ from pathlib import Path
 
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.preprocess import make_text

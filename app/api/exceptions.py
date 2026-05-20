@@ -36,7 +36,6 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
 
 async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
     import logging
-    import traceback
 
     request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
     trace_id = getattr(request.state, "trace_id", "unknown")

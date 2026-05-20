@@ -5,9 +5,7 @@ Loaded once at startup via lru_cache.
 
 from __future__ import annotations
 
-import io
 import pickle
-from functools import lru_cache
 from typing import Any
 
 from rank_bm25 import BM25Okapi

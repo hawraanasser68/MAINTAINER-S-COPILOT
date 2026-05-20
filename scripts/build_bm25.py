@@ -7,7 +7,6 @@ Usage:
 Requires: Docker stack running (MinIO healthy).
 """
 
-import io
 import json
 import sys
 from pathlib import Path
@@ -19,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.infra.bm25_index import build_index
 
 SPLITS_DIR = Path("data/splits")
-import os
+import os  # noqa: E402
+
 MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "http://localhost:9000")
 MINIO_ACCESS_KEY = "minioadmin"
 MINIO_SECRET_KEY = "minioadmin"

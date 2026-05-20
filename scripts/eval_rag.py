@@ -13,12 +13,12 @@ import json
 import sys
 from pathlib import Path
 
-from rank_bm25 import BM25Okapi
-from sentence_transformers import SentenceTransformer, CrossEncoder
 import numpy as np
+from rank_bm25 import BM25Okapi
+from sentence_transformers import CrossEncoder, SentenceTransformer
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from scripts.preprocess import make_text, load_split
+from scripts.preprocess import load_split, make_text
 
 OUTPUT_DIR = Path("models/rag_eval")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -29,7 +29,7 @@ GOLDEN_PATH = Path("data/golden_rag.jsonl")
 
 
 def load_golden() -> list[dict]:
-    return [json.loads(l) for l in GOLDEN_PATH.read_text().splitlines() if l.strip()]
+    return [json.loads(line) for line in GOLDEN_PATH.read_text().splitlines() if line.strip()]
 
 
 def hit_at_k(retrieved_numbers: list[int], ground_truth: list[int], k: int) -> float:

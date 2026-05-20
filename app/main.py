@@ -153,6 +153,7 @@ def create_app() -> FastAPI:
 
     # fastapi-users auth routes
     import uuid as _uuid
+
     from fastapi_users import schemas as fu_schemas
 
     class UserRead(fu_schemas.BaseUser[_uuid.UUID]):

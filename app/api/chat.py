@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Response
+from opentelemetry import trace
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +18,6 @@ from app.infra.database import get_session
 from app.repositories.models import ConversationORM, MessageORM, UserORM
 from app.services import agent as chat_agent
 from app.services import short_term_memory as stm
-from opentelemetry import trace
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 tracer = trace.get_tracer(__name__)

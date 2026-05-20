@@ -39,7 +39,7 @@ def memory_page() -> None:
                             role_icon = "🧑" if msg["role"] == "user" else "🤖"
                             st.markdown(f"**{role_icon} {msg['role'].capitalize()}:** {msg['content']}")
                             st.divider()
-                        st.caption(f"TTL: 3600 seconds — resets on each message")
+                        st.caption("TTL: 3600 seconds — resets on each message")
                 elif resp.status_code == 401:
                     st.error("Not authenticated.")
                 else:

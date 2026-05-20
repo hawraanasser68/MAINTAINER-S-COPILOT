@@ -1,9 +1,9 @@
 """Unit tests for retrieval utilities — no DB or Docker needed."""
 
 import pytest
+
 from app.infra.bm25_index import BM25Index, build_index
 from app.services.retrieval import reciprocal_rank_fusion
-
 
 # ── BM25 index ────────────────────────────────────────────────────────────────
 

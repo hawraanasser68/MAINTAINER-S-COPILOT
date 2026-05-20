@@ -15,7 +15,6 @@ import time
 from pathlib import Path
 
 import joblib
-import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -24,7 +23,6 @@ from sklearn.metrics import (
     f1_score,
 )
 from sklearn.pipeline import Pipeline
-from sklearn.utils.class_weight import compute_class_weight
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.preprocess import CLASSES, load_split

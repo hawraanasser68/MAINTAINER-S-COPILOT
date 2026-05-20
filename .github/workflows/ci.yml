@@ -45,19 +45,7 @@ jobs:
         run: pip install pyright fastapi pydantic sqlalchemy anthropic groq httpx redis boto3 hvac opentelemetry-sdk opentelemetry-api
 
       - name: pyright (non-blocking — report only)
-        run: pyright app/ --outputjson 2>&1 | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    errs = data.get('generalDiagnostics', [])
-    errors = [e for e in errs if e.get('severity') == 'error']
-    print(f'pyright: {len(errors)} errors, {len(errs)-len(errors)} warnings')
-    if errors:
-        for e in errors[:10]:
-            print(f\"  {e.get('file','?')}:{e.get('range',{}).get('start',{}).get('line','?')} — {e.get('message','?')}\")
-except Exception:
-    pass
-" || true
+        run: pyright app/ 2>&1 || true
 
   # ── 3. Unit tests (no Docker) ─────────────────────────────────────────────
   unit-tests:

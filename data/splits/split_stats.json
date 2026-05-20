@@ -1,0 +1,40 @@
+{
+  "total": 5000,
+  "train": {
+    "n": 3500,
+    "labels": {
+      "bug": 1341,
+      "feature": 793,
+      "docs": 940,
+      "question": 426
+    }
+  },
+  "val": {
+    "n": 500,
+    "labels": {
+      "bug": 205,
+      "feature": 125,
+      "docs": 82,
+      "question": 88
+    }
+  },
+  "test": {
+    "n": 1000,
+    "labels": {
+      "bug": 421,
+      "docs": 205,
+      "feature": 222,
+      "question": 152
+    }
+  },
+  "date_range": {
+    "min": "2012-09-13",
+    "max": "2026-05-18"
+  },
+  "temporal_boundary": {
+    "train_max": "2023-07-07",
+    "val_min": "2023-07-10",
+    "val_max": "2024-05-06",
+    "test_min": "2024-05-07"
+  }
+}

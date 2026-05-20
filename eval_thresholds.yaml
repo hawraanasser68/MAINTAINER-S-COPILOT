@@ -23,7 +23,7 @@ classification:
 rag:
   hit_at_5: 0.90            # actual: 1.0000 on 15-example golden set — conservative floor
   mrr_at_10: 0.82           # actual: 0.8778 — floor set 5 pts below
-  faithfulness: 0.01        # not yet auto-evaluated — placeholder kept above 0
-  answer_relevancy: 0.01    # not yet auto-evaluated — placeholder kept above 0
+  faithfulness: 0.59        # actual: 0.6360 — judge: llama-3.3-70b-versatile, 25 examples, floor 5 pts below
+  answer_relevancy: 0.78    # actual: 0.8320 — judge: llama-3.3-70b-versatile, 25 examples, floor 5 pts below
 
 # Boot check: api refuses to start if any value is 0.0 or file is missing.

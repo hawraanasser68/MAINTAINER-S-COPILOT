@@ -224,11 +224,12 @@ def main() -> None:
     _check(failures, deltas, "rag.mrr_at_10",
            rag_advanced.get("mrr_at_10"), rt.get("mrr_at_10", 0))
 
-    # faithfulness and answer_relevancy: skip if still at placeholder (< 0.1)
+    # faithfulness and answer_relevancy: check if threshold is real (>= 0.1)
     for metric in ("faithfulness", "answer_relevancy"):
         thr = rt.get(metric, 0)
         if thr >= 0.1:
-            _check(failures, deltas, f"rag.{metric}", None, thr)
+            actual = rag_metrics.get(metric)
+            _check(failures, deltas, f"rag.{metric}", actual, thr)
 
     # ── Validate golden set exists and is non-empty ──────────────────────────
     golden = [json.loads(line) for line in golden_path.read_text().splitlines() if line.strip()]
@@ -258,6 +259,8 @@ def main() -> None:
         "rag": {
             "hit_at_5": rag_advanced.get("hit_at_5"),
             "mrr_at_10": rag_advanced.get("mrr_at_10"),
+            "faithfulness": rag_metrics.get("faithfulness"),
+            "answer_relevancy": rag_metrics.get("answer_relevancy"),
             "eval_set_size": rag_metrics.get("eval_set_size"),
         },
         "redaction_test": "see pytest test_redaction.py",

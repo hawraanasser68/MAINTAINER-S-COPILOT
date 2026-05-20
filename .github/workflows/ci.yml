@@ -184,6 +184,21 @@ jobs:
           echo "--- .env written ---"
           cat .env
 
+      - name: Start Vault and seed LLM secrets
+        run: |
+          docker compose up -d vault
+          for i in $(seq 1 15); do
+            status=$(docker exec vault vault status -format=json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('initialized',''))" 2>/dev/null)
+            if [ "$status" = "True" ]; then
+              echo "Vault ready after ${i}s"
+              break
+            fi
+            echo "Waiting for Vault... ($i/15)"
+            sleep 2
+          done
+          docker exec vault vault kv put secret/llm/groq_api_key value="${{ secrets.GROQ_API_KEY }}"
+          docker exec vault vault kv put secret/llm/anthropic_api_key value="${{ secrets.ANTHROPIC_API_KEY }}"
+
       - name: Start stack
         run: docker compose up -d --wait
         timeout-minutes: 5

@@ -170,17 +170,19 @@ jobs:
 
       - name: Write CI .env
         run: |
-          cat > .env <<EOF
-          VAULT_ROOT_TOKEN=dev-root-token
-          VAULT_ADDR=http://vault:8200
-          DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/maintainers_copilot
-          REDIS_URL=redis://redis:6379
-          MINIO_ENDPOINT=http://minio:9000
-          MINIO_ACCESS_KEY=minioadmin
-          MINIO_SECRET_KEY=minioadmin
-          GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-          EOF
+          printf '%s\n' \
+            'VAULT_ROOT_TOKEN=dev-root-token' \
+            'VAULT_ADDR=http://vault:8200' \
+            'DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/maintainers_copilot' \
+            'REDIS_URL=redis://redis:6379' \
+            'MINIO_ENDPOINT=http://minio:9000' \
+            'MINIO_ACCESS_KEY=minioadmin' \
+            'MINIO_SECRET_KEY=minioadmin' \
+            "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" \
+            "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" \
+            > .env
+          echo "--- .env written ---"
+          cat .env
 
       - name: Start stack
         run: docker compose up -d --wait

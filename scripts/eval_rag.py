@@ -1,15 +1,26 @@
 """
-RAG evaluation — hit@5, MRR@10 for naive vs hybrid pipeline.
-Runs locally without Docker by using the precomputed embeddings and BM25 index.
+RAG ablation study — 6 pipeline variants.
+
+  1. dense_only           — cosine similarity, raw query
+  2. bm25_only            — keyword search, raw query
+  3. hybrid_no_rerank     — BM25 + dense + RRF, no cross-encoder
+  4. dense_rerank         — dense + cross-encoder, no BM25
+  5. hybrid_rerank        — BM25 + dense + RRF + cross-encoder  (production pipeline)
+  6. hybrid_rerank_hyde   — same as 5 but retrieval uses HyDE-rewritten query
+                            (requires GROQ_API_KEY; skipped if not set)
 
 Usage:
     python scripts/eval_rag.py
+    GROQ_API_KEY=sk-... python scripts/eval_rag.py   # enables HyDE variant
 
 Outputs:
     models/rag_eval/metrics.json
 """
 
+from __future__ import annotations
+
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -18,7 +29,7 @@ from rank_bm25 import BM25Okapi
 from sentence_transformers import CrossEncoder, SentenceTransformer
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from scripts.preprocess import load_split, make_text
+from scripts.preprocess import make_text  # noqa: E402
 
 OUTPUT_DIR = Path("models/rag_eval")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -27,57 +38,99 @@ EMBED_MODEL = "all-MiniLM-L6-v2"
 RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 GOLDEN_PATH = Path("data/golden_rag.jsonl")
 
+HYDE_SYSTEM = (
+    "You are a GitHub issue assistant for scikit-learn. "
+    "Given a maintainer's question, write a short hypothetical GitHub issue "
+    "(title + 2-sentence body) that would perfectly answer the question if it "
+    "existed in the issue tracker. "
+    "Write ONLY the hypothetical issue text — no preamble, no explanation."
+)
 
-def load_golden() -> list[dict]:
-    return [json.loads(line) for line in GOLDEN_PATH.read_text().splitlines() if line.strip()]
 
+# ---------------------------------------------------------------------------
+# Metrics
+# ---------------------------------------------------------------------------
 
-def hit_at_k(retrieved_numbers: list[int], ground_truth: list[int], k: int) -> float:
+def hit_at_k(retrieved: list[int], ground_truth: list[int], k: int) -> float:
     if not ground_truth:
         return 0.0
-    return float(bool(set(retrieved_numbers[:k]) & set(ground_truth)))
+    return float(bool(set(retrieved[:k]) & set(ground_truth)))
 
 
-def mrr_at_k(retrieved_numbers: list[int], ground_truth: list[int], k: int) -> float:
+def mrr_at_k(retrieved: list[int], ground_truth: list[int], k: int) -> float:
     if not ground_truth:
         return 0.0
-    for rank, num in enumerate(retrieved_numbers[:k], start=1):
+    for rank, num in enumerate(retrieved[:k], start=1):
         if num in ground_truth:
             return 1.0 / rank
     return 0.0
 
 
-def main() -> None:
-    golden = load_golden()
-    # Only evaluate examples with ground_truth_issue_numbers
-    eval_set = [g for g in golden if g["ground_truth_issue_numbers"]]
-    print(f"Golden set: {len(golden)} total, {len(eval_set)} with ground-truth issue numbers")
+# ---------------------------------------------------------------------------
+# HyDE
+# ---------------------------------------------------------------------------
 
+def hyde_rewrite(query: str, client) -> str:  # type: ignore[no-untyped-def]
+    try:
+        resp = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            max_tokens=150,
+            messages=[
+                {"role": "system", "content": HYDE_SYSTEM},
+                {"role": "user", "content": query},
+            ],
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception:
+        return query
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    golden = [json.loads(line) for line in GOLDEN_PATH.read_text().splitlines() if line.strip()]
+    eval_set = [g for g in golden if g["ground_truth_issue_numbers"]]
+    print(f"Golden set: {len(golden)} total, {len(eval_set)} with ground-truth issue numbers\n")
+
+    # Optional HyDE via Groq
+    groq_api_key = os.environ.get("GROQ_API_KEY", "")
+    groq_client = None
+    if groq_api_key:
+        import groq as _groq
+        groq_client = _groq.Groq(api_key=groq_api_key)
+        print("GROQ_API_KEY found — HyDE variant enabled.")
+    else:
+        print("GROQ_API_KEY not set — HyDE variant will be skipped.")
+
+    # Load models
     print(f"\nLoading embedding model: {EMBED_MODEL}")
     embedder = SentenceTransformer(EMBED_MODEL)
+    print(f"Loading reranker: {RERANK_MODEL}")
     reranker = CrossEncoder(RERANK_MODEL)
 
-    print("Loading all issues and building local index...")
-    all_texts, all_labels = load_split("train")
-    val_texts, val_labels = load_split("val")
-    test_texts, test_labels = load_split("test")
-
-    import json as _json
-    all_records = []
-    for split in ["train", "val", "test"]:
+    # Build corpus
+    print("\nLoading all issues and building index...")
+    all_records: list[dict] = []
+    for split in ("train", "val", "test"):
         for line in Path(f"data/splits/{split}.jsonl").read_text().splitlines():
             if line.strip():
-                all_records.append(_json.loads(line))
+                all_records.append(json.loads(line))
 
     texts = [make_text(r["title"], r["body"]) for r in all_records]
     numbers = [r["number"] for r in all_records]
+    num_to_idx = {n: i for i, n in enumerate(numbers)}
 
     print(f"  Building BM25 index over {len(texts)} issues...")
-    tokenized = [t.lower().split() for t in texts]
-    bm25 = BM25Okapi(tokenized)
+    bm25 = BM25Okapi([t.lower().split() for t in texts])
 
     print(f"  Embedding {len(texts)} issues (this takes a few minutes)...")
-    embeddings = embedder.encode(texts, batch_size=64, show_progress_bar=True, normalize_embeddings=True)
+    embeddings = embedder.encode(
+        texts, batch_size=64, show_progress_bar=True, normalize_embeddings=True
+    )
+
+    # ── Primitive search functions ────────────────────────────────────────────
 
     def dense_search(query: str, top_k: int = 20) -> list[int]:
         qvec = embedder.encode(query, normalize_embeddings=True)
@@ -86,69 +139,126 @@ def main() -> None:
         return [numbers[i] for i in top_idx]
 
     def bm25_search(query: str, top_k: int = 20) -> list[int]:
-        tokens = query.lower().split()
-        scores = bm25.get_scores(tokens)
+        scores = bm25.get_scores(query.lower().split())
         top_idx = np.argsort(scores)[::-1][:top_k]
         return [numbers[i] for i in top_idx]
 
-    def rrf_fusion(dense: list[int], sparse: list[int], k: int = 60) -> list[int]:
-        scores: dict[int, float] = {}
+    def rrf(dense: list[int], sparse: list[int], k: int = 60) -> list[int]:
+        sc: dict[int, float] = {}
         for rank, n in enumerate(dense):
-            scores[n] = scores.get(n, 0.0) + 1.0 / (k + rank + 1)
+            sc[n] = sc.get(n, 0.0) + 1.0 / (k + rank + 1)
         for rank, n in enumerate(sparse):
-            scores[n] = scores.get(n, 0.0) + 1.0 / (k + rank + 1)
-        return sorted(scores, key=lambda n: scores[n], reverse=True)
+            sc[n] = sc.get(n, 0.0) + 1.0 / (k + rank + 1)
+        return sorted(sc, key=lambda n: sc[n], reverse=True)
 
-    def hybrid_rerank(query: str, top_k: int = 5) -> list[int]:
-        dense = dense_search(query, 20)
-        sparse = bm25_search(query, 20)
-        fused = rrf_fusion(dense, sparse)[:20]
-        num_to_idx = {r["number"]: i for i, r in enumerate(all_records)}
-        pairs = [(query, texts[num_to_idx[n]][:300]) for n in fused if n in num_to_idx]
+    def rerank(query: str, candidates: list[int], top_k: int = 5) -> list[int]:
+        pairs = [(query, texts[num_to_idx[n]][:300]) for n in candidates if n in num_to_idx]
         if not pairs:
-            return fused[:top_k]
-        rerank_scores = reranker.predict(pairs)
-        ranked = sorted(zip(rerank_scores, fused), key=lambda x: x[0], reverse=True)
+            return candidates[:top_k]
+        scores = reranker.predict(pairs)
+        ranked = sorted(zip(scores, candidates), key=lambda x: x[0], reverse=True)
         return [n for _, n in ranked[:top_k]]
 
-    print("\nEvaluating naive (dense only) vs advanced (hybrid + rerank)...\n")
+    # ── Pipeline definitions ──────────────────────────────────────────────────
 
-    naive_hits, naive_mrr = [], []
-    advanced_hits, advanced_mrr = [], []
+    def p_dense(q: str) -> list[int]:
+        return dense_search(q, top_k=5)
 
-    for example in eval_set:
-        q = example["question"]
-        gt = example["ground_truth_issue_numbers"]
+    def p_bm25(q: str) -> list[int]:
+        return bm25_search(q, top_k=5)
 
-        naive_top5 = dense_search(q, top_k=5)
-        adv_top5 = hybrid_rerank(q, top_k=5)
+    def p_hybrid(q: str) -> list[int]:
+        return rrf(dense_search(q, 20), bm25_search(q, 20))[:5]
 
-        naive_hits.append(hit_at_k(naive_top5, gt, 5))
-        naive_mrr.append(mrr_at_k(naive_top5, gt, 10))
-        advanced_hits.append(hit_at_k(adv_top5, gt, 5))
-        advanced_mrr.append(mrr_at_k(adv_top5, gt, 10))
+    def p_dense_rerank(q: str) -> list[int]:
+        return rerank(q, dense_search(q, 20), top_k=5)
 
-        print(f"  Q{example['id']:02d}: naive_hit={naive_hits[-1]:.0f} adv_hit={advanced_hits[-1]:.0f} | {q[:55]}")
+    def p_hybrid_rerank(q: str) -> list[int]:
+        fused = rrf(dense_search(q, 20), bm25_search(q, 20))[:20]
+        return rerank(q, fused, top_k=5)
 
-    naive_h5   = round(sum(naive_hits) / len(naive_hits), 4)
-    naive_mrr10 = round(sum(naive_mrr) / len(naive_mrr), 4)
-    adv_h5     = round(sum(advanced_hits) / len(advanced_hits), 4)
-    adv_mrr10  = round(sum(advanced_mrr) / len(advanced_mrr), 4)
+    def p_hybrid_rerank_hyde(q: str) -> list[int]:
+        hyp = hyde_rewrite(q, groq_client)
+        fused = rrf(dense_search(hyp, 20), bm25_search(hyp, 20))[:20]
+        return rerank(q, fused, top_k=5)  # rerank with original query for accuracy
 
-    print(f"\n{'='*50}")
-    print(f"{'Metric':<20} {'Naive (dense)':>15} {'Advanced (hybrid)':>18}  {'Delta':>8}")
-    print(f"{'='*50}")
-    print(f"  {'hit@5':<18} {naive_h5:>15.4f} {adv_h5:>18.4f}  {adv_h5-naive_h5:>+8.4f}")
-    print(f"  {'MRR@10':<18} {naive_mrr10:>15.4f} {adv_mrr10:>18.4f}  {adv_mrr10-naive_mrr10:>+8.4f}")
+    pipelines: dict[str, object] = {
+        "dense_only":         p_dense,
+        "bm25_only":          p_bm25,
+        "hybrid_no_rerank":   p_hybrid,
+        "dense_rerank":       p_dense_rerank,
+        "hybrid_rerank":      p_hybrid_rerank,
+    }
+    if groq_client:
+        pipelines["hybrid_rerank_hyde"] = p_hybrid_rerank_hyde
+
+    # ── Evaluate all pipelines ────────────────────────────────────────────────
+
+    data: dict[str, dict[str, list[float]]] = {
+        name: {"hits": [], "mrrs": []} for name in pipelines
+    }
+
+    col_w = 16
+    print(f"\n{'Q':<5}" + "".join(f"{n:>{col_w}}" for n in pipelines))
+    print("─" * (5 + col_w * len(pipelines)))
+
+    for ex in eval_set:
+        q = ex["question"]
+        gt = ex["ground_truth_issue_numbers"]
+        row = f"Q{ex['id']:02d}  "
+        for name, fn in pipelines.items():
+            top5 = fn(q)  # type: ignore[operator]
+            h = hit_at_k(top5, gt, 5)
+            m = mrr_at_k(top5, gt, 10)
+            data[name]["hits"].append(h)
+            data[name]["mrrs"].append(m)
+            row += f"{'hit' if h else 'MISS':>{col_w}}"
+        print(row)
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+
+    print(f"\n{'='*55}")
+    print(f"  {'Pipeline':<24} {'hit@5':>7} {'MRR@10':>8}")
+    print(f"  {'─'*24} {'─'*7} {'─'*8}")
+
+    summary: dict[str, dict[str, float]] = {}
+    for name, d in data.items():
+        h5 = round(sum(d["hits"]) / len(d["hits"]), 4)
+        mrr10 = round(sum(d["mrrs"]) / len(d["mrrs"]), 4)
+        summary[name] = {"hit_at_5": h5, "mrr_at_10": mrr10}
+        tag = "  ← production" if name == "hybrid_rerank" else ""
+        print(f"  {name:<24} {h5:>7.4f} {mrr10:>8.4f}{tag}")
+
+    print(f"{'='*55}")
+
+    # Improvement of each over dense_only baseline
+    baseline_h = summary["dense_only"]["hit_at_5"]
+    baseline_m = summary["dense_only"]["mrr_at_10"]
+    print(f"\n  Deltas vs dense_only baseline:")
+    for name, s in summary.items():
+        if name == "dense_only":
+            continue
+        dh = s["hit_at_5"] - baseline_h
+        dm = s["mrr_at_10"] - baseline_m
+        print(f"  {name:<24}  hit@5 {dh:+.4f}   MRR@10 {dm:+.4f}")
+
+    # ── Write metrics.json ────────────────────────────────────────────────────
 
     metrics = {
         "eval_set_size": len(eval_set),
-        "naive_dense": {"hit_at_5": naive_h5, "mrr_at_10": naive_mrr10},
-        "advanced_hybrid_rerank": {"hit_at_5": adv_h5, "mrr_at_10": adv_mrr10},
-        "delta": {"hit_at_5": round(adv_h5 - naive_h5, 4), "mrr_at_10": round(adv_mrr10 - naive_mrr10, 4)},
         "embedding_model": EMBED_MODEL,
         "reranker": RERANK_MODEL,
+        # Original keys — keep for CI gate backward compatibility
+        "naive_dense": summary["dense_only"],
+        "advanced_hybrid_rerank": summary["hybrid_rerank"],
+        "delta": {
+            "hit_at_5":  round(summary["hybrid_rerank"]["hit_at_5"]  - summary["dense_only"]["hit_at_5"],  4),
+            "mrr_at_10": round(summary["hybrid_rerank"]["mrr_at_10"] - summary["dense_only"]["mrr_at_10"], 4),
+        },
+        # Full ablation results
+        "ablation": summary,
     }
+
     out = OUTPUT_DIR / "metrics.json"
     out.write_text(json.dumps(metrics, indent=2))
     print(f"\nSaved → {out}")

@@ -1,0 +1,15 @@
+data/
+__pycache__/
+.env
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+notebooks/.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+.DS_Store

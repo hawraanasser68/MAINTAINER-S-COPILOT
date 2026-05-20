@@ -1,0 +1,46 @@
+{
+  "run_id": "20260520T112529_local",
+  "timestamp": "2026-05-20T11:25:29.614949+00:00",
+  "commit_sha": "local",
+  "passed": true,
+  "failure_count": 0,
+  "failures": [],
+  "metric_deltas_vs_threshold": {
+    "classification.finetuned.macro_f1": 0.023,
+    "classification.finetuned.per_class_f1.bug": 0.0416,
+    "classification.finetuned.per_class_f1.feature": 0.0397,
+    "classification.finetuned.per_class_f1.docs": 0.0414,
+    "classification.finetuned.per_class_f1.question": 0.0795,
+    "classification.classical.macro_f1": 0.0234,
+    "classification.llm.macro_f1": 0.0312,
+    "rag.hit_at_5": 0.1,
+    "rag.mrr_at_10": 0.0578
+  },
+  "classification": {
+    "finetuned": {
+      "macro_f1": 0.823,
+      "per_class_f1": {
+        "bug": 0.8816,
+        "feature": 0.8597,
+        "docs": 0.8714,
+        "question": 0.6795
+      }
+    },
+    "classical": {
+      "macro_f1": 0.8134
+    },
+    "llm": {
+      "macro_f1": 0.6112
+    }
+  },
+  "rag": {
+    "hit_at_5": 1.0,
+    "mrr_at_10": 0.8778,
+    "eval_set_size": 15
+  },
+  "redaction_test": "see pytest test_redaction.py",
+  "golden_set": {
+    "total": 25,
+    "hand_labelled": 8
+  }
+}

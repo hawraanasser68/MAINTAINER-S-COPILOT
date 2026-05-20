@@ -1,0 +1,18 @@
+{
+  "model": "llama-3.1-8b-instant",
+  "provider": "groq",
+  "mode": "zero-shot",
+  "sample_size": 200,
+  "test": {
+    "accuracy": 0.72,
+    "macro_f1": 0.6112,
+    "per_class_f1": {
+      "bug": 0.8,
+      "feature": 0.7536,
+      "docs": 0.7912,
+      "question": 0.1
+    },
+    "latency_ms_per_sample": 4520.1
+  },
+  "cost_note": "Free tier (Groq) \u2014 $0"
+}

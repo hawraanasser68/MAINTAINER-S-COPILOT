@@ -1,0 +1,19 @@
+{
+  "model": "tfidf_logreg",
+  "val": {
+    "accuracy": 0.854,
+    "macro_f1": 0.8407
+  },
+  "test": {
+    "accuracy": 0.832,
+    "macro_f1": 0.8134,
+    "per_class_f1": {
+      "bug": 0.8686,
+      "feature": 0.8486,
+      "docs": 0.8365,
+      "question": 0.6997
+    },
+    "latency_ms_per_sample": 0.817
+  },
+  "train_time_s": 5.3
+}

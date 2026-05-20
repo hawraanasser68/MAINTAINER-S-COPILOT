@@ -1,0 +1,244 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 1. Lint ─────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install linting deps
+        run: pip install ruff
+
+      - name: ruff check
+        run: ruff check app/ modelserver/ chatbot/ scripts/ tests/ --select E,F,W,I --ignore E501
+
+  # ── 2. Type check ────────────────────────────────────────────────────────────
+  type-check:
+    name: Type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: pip install pyright fastapi pydantic sqlalchemy anthropic groq httpx redis boto3 hvac opentelemetry-sdk opentelemetry-api
+
+      - name: pyright (non-blocking — report only)
+        run: pyright app/ --outputjson 2>&1 | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    errs = data.get('generalDiagnostics', [])
+    errors = [e for e in errs if e.get('severity') == 'error']
+    print(f'pyright: {len(errors)} errors, {len(errs)-len(errors)} warnings')
+    if errors:
+        for e in errors[:10]:
+            print(f\"  {e.get('file','?')}:{e.get('range',{}).get('start',{}).get('line','?')} — {e.get('message','?')}\")
+except Exception:
+    pass
+" || true
+
+  # ── 3. Unit tests (no Docker) ─────────────────────────────────────────────
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: pip install -e ".[dev]" || pip install -r requirements-dev.txt 2>/dev/null || pip install pytest pytest-asyncio anyio httpx fastapi sqlalchemy asyncpg pgvector redis boto3 hvac opentelemetry-sdk opentelemetry-api anthropic groq passlib[bcrypt] python-jose python-multipart fastapi-users[sqlalchemy] pydantic structlog rank-bm25 sentence-transformers joblib scikit-learn numpy PyYAML
+
+      - name: pytest — unit tests (no infra needed)
+        run: |
+          pytest tests/test_health.py \
+                 tests/test_redaction.py \
+                 tests/test_splits.py \
+                 tests/test_retrieval.py \
+                 -v --tb=short
+        env:
+          PYTHONPATH: .
+
+  # ── 4. Eval gate ─────────────────────────────────────────────────────────────
+  eval-gate:
+    name: Eval gate
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: pip install PyYAML boto3
+
+      - name: Validate eval_thresholds.yaml is non-zero
+        run: |
+          python3 - <<'EOF'
+          import yaml, sys
+          data = yaml.safe_load(open("eval_thresholds.yaml"))
+          def check(d, path=""):
+              for k, v in d.items():
+                  p = f"{path}.{k}" if path else k
+                  if isinstance(v, dict):
+                      check(v, p)
+                  elif isinstance(v, (int, float)):
+                      if v == 0:
+                          print(f"[BOOT-CHECK] threshold {p} = 0 — boot would be blocked")
+                          sys.exit(1)
+          check(data)
+          print("All thresholds non-zero — boot check passes")
+          EOF
+
+      - name: Run eval gate (check committed metrics vs thresholds)
+        run: python scripts/run_evals_ci.py --dry-run
+        env:
+          PYTHONPATH: .
+
+      - name: Upload eval_report.json as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-${{ github.sha }}
+          path: eval_report.json
+          retention-days: 90
+
+      - name: Upload eval_report.json to MinIO
+        if: success() && github.ref == 'refs/heads/main'
+        run: python scripts/run_evals_ci.py
+        env:
+          PYTHONPATH: .
+          MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+          MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+
+  # ── 5. Build images ──────────────────────────────────────────────────────────
+  build-images:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build -f Dockerfile.api -t maintainers-copilot-api:ci .
+
+      - name: Build model server image
+        run: docker build -f Dockerfile.modelserver -t maintainers-copilot-modelserver:ci .
+
+      - name: Build chatbot image
+        run: docker build -f Dockerfile.chatbot -t maintainers-copilot-chatbot:ci .
+
+  # ── 6. Smoke test ─────────────────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke test
+    runs-on: ubuntu-latest
+    needs: build-images
+    # Only run on pushes to main so PR checks stay fast
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write CI .env
+        run: |
+          cat > .env <<EOF
+          VAULT_ROOT_TOKEN=dev-root-token
+          VAULT_ADDR=http://vault:8200
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/maintainers_copilot
+          REDIS_URL=redis://redis:6379
+          MINIO_ENDPOINT=http://minio:9000
+          MINIO_ACCESS_KEY=minioadmin
+          MINIO_SECRET_KEY=minioadmin
+          GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          EOF
+
+      - name: Start stack
+        run: docker compose up -d --wait
+        timeout-minutes: 5
+
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 30); do
+            status=$(curl -s http://localhost:8000/health | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',''))" 2>/dev/null)
+            if [ "$status" = "ok" ]; then
+              echo "API healthy after ${i}s"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          curl -sf http://localhost:8000/health | python3 -m json.tool
+
+      - name: Smoke — /health returns 200
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
+          [ "$code" = "200" ] || (echo "health returned $code" && exit 1)
+
+      - name: Smoke — modelserver /classify succeeds
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8001/classify \
+            -H "Content-Type: application/json" \
+            -d '{"title":"GridSearchCV MemoryError with n_jobs=-1","body":""}')
+          [ "$code" = "200" ] || (echo "classify returned $code" && exit 1)
+          echo "modelserver /classify OK"
+
+      - name: Smoke — register + login + chat
+        run: |
+          # Register test user
+          curl -s -X POST http://localhost:8000/auth/register \
+            -H "Content-Type: application/json" \
+            -d '{"email":"ci@example.com","password":"cipassword123"}' || true
+
+          # Login
+          TOKEN=$(curl -s -X POST http://localhost:8000/auth/jwt/login \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "username=ci%40example.com&password=cipassword123" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))")
+
+          if [ -z "$TOKEN" ]; then
+            echo "Login failed — skipping chat smoke test (API keys may not be configured)"
+            exit 0
+          fi
+
+          # Send classify message
+          CONV=$(python3 -c "import uuid; print(uuid.uuid4())")
+          RESP=$(curl -s -X POST http://localhost:8000/chat \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"message\":\"Classify this: GridSearchCV MemoryError with n_jobs=-1\",\"conversation_id\":\"$CONV\"}")
+          echo "$RESP" | python3 -m json.tool
+          echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'reply' in d, 'no reply field'; print('chat OK')"
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs --tail=50

@@ -1,0 +1,35 @@
+{
+  "architecture": "distilbert-base-uncased",
+  "num_labels": 4,
+  "classes": [
+    "bug",
+    "feature",
+    "docs",
+    "question"
+  ],
+  "max_length": 128,
+  "freeze_policy": "all layers unfrozen \u2014 full fine-tune with lr=2e-5",
+  "hyperparameters": {
+    "lr": 2e-05,
+    "epochs": 3,
+    "batch_size": 32,
+    "weight_decay": 0.01,
+    "class_weight": "balanced"
+  },
+  "training_data_hash": "a4b70343a462e231f353acf4a8abac158830f86195eb9856f854ab43a3a77743",
+  "metrics": {
+    "val_macro_f1": 0.8408,
+    "test_macro_f1": 0.823,
+    "test_accuracy": 0.843,
+    "per_class_f1": {
+      "bug": 0.8816,
+      "feature": 0.8597,
+      "docs": 0.8714,
+      "question": 0.6795
+    },
+    "latency_ms_per_sample": 107.556
+  },
+  "artifact_path": "models/classifier",
+  "sha256": "88aa566243673a48e9c4a74c98f93194f3efb190a141efaa8372931d0f0b322e",
+  "train_time_s": 4622.0
+}

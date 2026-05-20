@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>scikit-learn — Demo App</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      background: #f8f9fa;
+      color: #212529;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: #1f77b4;
+      color: #fff;
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    nav .logo { font-weight: 700; font-size: 17px; }
+    nav a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 14px; }
+    nav a:hover { color: #fff; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #1565a0, #1f77b4);
+      color: #fff;
+      padding: 64px 32px;
+      text-align: center;
+    }
+    .hero h1 { font-size: 36px; margin-bottom: 14px; }
+    .hero p  { font-size: 18px; opacity: 0.88; max-width: 520px; margin: 0 auto 28px; }
+    .hero .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      margin: 4px;
+    }
+
+    /* ── Cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      padding: 40px 32px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 22px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card h3 { font-size: 15px; margin-bottom: 8px; }
+    .card p  { font-size: 13px; color: #666; line-height: 1.6; }
+    .label {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+    .label.bug      { background: #fdecea; color: #c0392b; }
+    .label.feature  { background: #e8f4fb; color: #1f77b4; }
+    .label.docs     { background: #e8f8f0; color: #27ae60; }
+    .label.question { background: #fef9e7; color: #d4a017; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    /* ── Widget hint ── */
+    .hint {
+      position: fixed;
+      bottom: 90px;
+      right: 20px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: #555;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      pointer-events: none;
+      animation: fadeout 4s ease 3s forwards;
+    }
+    @keyframes fadeout { to { opacity: 0; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">🔬 scikit-learn</span>
+  <a href="#">Issues</a>
+  <a href="#">Docs</a>
+  <a href="#">Releases</a>
+</nav>
+
+<div class="hero">
+  <h1>Maintainer's Copilot Demo</h1>
+  <p>An AI assistant that classifies issues, searches similar past reports, and recalls what your team has learned.</p>
+  <span class="badge">RAG-powered</span>
+  <span class="badge">Tool-calling agent</span>
+  <span class="badge">Long-term memory</span>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <h3>#28441 — KeyError when fitting Pipeline with passthrough</h3>
+    <p>Reproducible with scikit-learn 1.4.1. Pipeline raises KeyError in column transformer when passthrough is set and input has extra columns.</p>
+    <span class="label bug">bug</span>
+  </div>
+  <div class="card">
+    <h3>#28123 — Add min_impurity_decrease to HistGradientBoosting</h3>
+    <p>Request to expose min_impurity_decrease parameter in HistGradientBoostingClassifier for consistency with other tree-based estimators.</p>
+    <span class="label feature">feature</span>
+  </div>
+  <div class="card">
+    <h3>#27990 — Clarify cross_val_score vs cross_validate docs</h3>
+    <p>The documentation for cross_val_score does not mention that it returns negated scores for loss metrics. Users are confused by negative MSE.</p>
+    <span class="label docs">docs</span>
+  </div>
+  <div class="card">
+    <h3>#27831 — How to use sample_weight in GridSearchCV?</h3>
+    <p>I'm trying to pass sample weights to GridSearchCV but fit_params is deprecated. What is the correct way in 1.4?</p>
+    <span class="label question">question</span>
+  </div>
+  <div class="card">
+    <h3>#28200 — ConvergenceWarning even with high max_iter</h3>
+    <p>LogisticRegression raises ConvergenceWarning with max_iter=10000. This used to converge in scikit-learn 1.2 with the same data.</p>
+    <span class="label bug">bug</span>
+  </div>
+  <div class="card">
+    <h3>#28050 — Add UMAP as a dimensionality reduction option</h3>
+    <p>UMAP is widely used but not in scikit-learn. Would it be possible to add a wrapper or official integration?</p>
+    <span class="label feature">feature</span>
+  </div>
+</div>
+
+<footer>
+  Demo page — Maintainer's Copilot widget loads bottom-right. Powered by FastAPI + pgvector + Groq.
+</footer>
+
+<!-- Hint bubble -->
+<div class="hint">💬 Try the AI assistant →</div>
+
+<!-- Embeddable widget -->
+<script
+  src="http://localhost:8080/widget.js"
+  data-widget-id="demo"
+  data-api-url="http://localhost:8000"
+></script>
+
+</body>
+</html>

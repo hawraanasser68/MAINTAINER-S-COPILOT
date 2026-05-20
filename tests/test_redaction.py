@@ -121,7 +121,8 @@ def test_span_attributes_are_redacted() -> None:
     mock_tracer = MagicMock()
     mock_tracer.start_as_current_span.return_value = mock_span
 
-    with patch("app.infra.tracing.get_tracer", return_value=mock_tracer):
+    import app.infra.tracing as _tracing_module  # ensure module is loaded before patch
+    with patch.object(_tracing_module, "get_tracer", return_value=mock_tracer):
         from app.infra.tracing import create_span
         with create_span("test.span", {"api_key": FAKE_OPENAI_KEY, "user": FAKE_EMAIL}):
             pass

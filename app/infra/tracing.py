@@ -2,10 +2,8 @@ from contextlib import contextmanager
 from typing import Any, Generator
 
 from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from app.infra.redaction import redact_dict
 
@@ -13,6 +11,10 @@ _tracer: trace.Tracer | None = None
 
 
 def setup_tracing(service_name: str, otlp_endpoint: str) -> None:
+    # Lazy import — only needed at runtime, not during unit tests
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter  # noqa: PLC0415
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor  # noqa: PLC0415
+
     global _tracer
     resource = Resource.create({"service.name": service_name})
     provider = TracerProvider(resource=resource)

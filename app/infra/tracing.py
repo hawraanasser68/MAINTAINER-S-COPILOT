@@ -12,7 +12,9 @@ _tracer: trace.Tracer | None = None
 
 def setup_tracing(service_name: str, otlp_endpoint: str) -> None:
     # Lazy import — only needed at runtime, not during unit tests
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter  # noqa: PLC0415
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+        OTLPSpanExporter,  # noqa: PLC0415
+    )
     from opentelemetry.sdk.trace.export import BatchSpanProcessor  # noqa: PLC0415
 
     global _tracer

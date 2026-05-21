@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,7 @@ import anthropic as _anthropic_sdk
 from groq import BadRequestError, Groq
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.infra.tracing import create_span
 from app.services import long_term_memory as ltm
 from app.services import short_term_memory as stm
 from app.services.tools import TOOL_SCHEMAS, execute_tool
@@ -114,14 +116,21 @@ async def _run_anthropic(
 
     for round_num in range(_MAX_TOOL_ROUNDS):
         try:
-            response = await client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=512,
-                system=system_prompt,
-                messages=anthropic_msgs,
-                tools=ANTHROPIC_TOOL_SCHEMAS,
-                tool_choice={"type": "required"} if round_num == 0 else {"type": "auto"},
-            )
+            _t = time.perf_counter()
+            span_attrs = {"model": "claude-haiku-4-5-20251001", "round": round_num}
+            with create_span("llm.anthropic", span_attrs) as llm_span:
+                response = await client.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=512,
+                    system=system_prompt,
+                    messages=anthropic_msgs,
+                    tools=ANTHROPIC_TOOL_SCHEMAS,
+                    tool_choice={"type": "any"} if round_num == 0 else {"type": "auto"},
+                )
+                llm_span.set_attribute("latency_ms", round((time.perf_counter() - _t) * 1000, 1))
+                if hasattr(response, "usage") and response.usage:
+                    llm_span.set_attribute("input_tokens", response.usage.input_tokens)
+                    llm_span.set_attribute("output_tokens", response.usage.output_tokens)
         except Exception:
             if round_num == 0:
                 return None  # First call failed → try Groq fallback
@@ -132,7 +141,7 @@ async def _run_anthropic(
                     max_tokens=256,
                     system=system_prompt,
                     messages=anthropic_msgs + [
-                        {"role": "user", "content": "Please give a final answer based on the tool results above."}
+                        {"role": "user", "content": "Please give a final answer based on the tool results above."}  # noqa: E501
                     ],
                 )
                 reply = fallback.content[0].text if fallback.content else "[No response]"
@@ -155,7 +164,12 @@ async def _run_anthropic(
 
         tool_results: list[dict[str, Any]] = []
         for block in tool_use_blocks:
-            tool_result = await execute_tool(block.name, block.input, session, user_id=user_id, conversation_id=conversation_id)
+            with create_span("tool.call", {"tool_name": block.name}) as tool_span:
+                tool_result = await execute_tool(
+                    block.name, block.input, session,
+                    user_id=user_id, conversation_id=conversation_id,
+                )
+                tool_span.set_attribute("result_chars", len(tool_result))
             tool_calls_made.append({"tool": block.name, "args": block.input, "result": tool_result})
             tool_results.append({
                 "type": "tool_result",
@@ -179,7 +193,7 @@ async def _run_anthropic(
                 max_tokens=256,
                 system=system_prompt,
                 messages=anthropic_msgs + [
-                    {"role": "user", "content": "Please give a final answer based on the tool results above."}
+                    {"role": "user", "content": "Please give a final answer based on the tool results above."}  # noqa: E501
                 ],
             )
             reply = fallback.content[0].text if fallback.content else "[No response]"
@@ -218,8 +232,13 @@ async def _run_groq(
     msg_lower = user_message.lower()
     is_single_tool = any(msg_lower.startswith(p) for p in _SINGLE_TOOL_PREFIXES)
     if not is_single_tool and any(t in msg_lower for t in _RAG_TRIGGERS):
-        rag_result_str = await execute_tool("rag_search", {"query": user_message}, session, user_id=user_id, conversation_id=conversation_id)
-        tool_calls_made.append({"tool": "rag_search", "args": {"query": user_message}, "result": rag_result_str})
+        with create_span("tool.call", {"tool_name": "rag_search"}) as tool_span:
+            rag_result_str = await execute_tool(
+                "rag_search", {"query": user_message}, session,
+                user_id=user_id, conversation_id=conversation_id,
+            )
+            tool_span.set_attribute("result_chars", len(rag_result_str))
+        tool_calls_made.append({"tool": "rag_search", "args": {"query": user_message}, "result": rag_result_str})  # noqa: E501
         synthesis_msgs = [
             *messages_for_llm[:-1],
             {
@@ -244,13 +263,20 @@ async def _run_groq(
     round_num = 0
     for round_num in range(_MAX_TOOL_ROUNDS):
         try:
-            response = groq.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=messages_for_llm,
-                tools=TOOL_SCHEMAS,
-                tool_choice="auto",
-                max_tokens=512,
-            )
+            _t = time.perf_counter()
+            groq_attrs = {"model": "llama-3.3-70b-versatile", "round": round_num}
+            with create_span("llm.groq", groq_attrs) as llm_span:
+                response = groq.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=messages_for_llm,
+                    tools=TOOL_SCHEMAS,
+                    tool_choice="auto",
+                    max_tokens=512,
+                )
+                llm_span.set_attribute("latency_ms", round((time.perf_counter() - _t) * 1000, 1))
+                if response.usage:
+                    llm_span.set_attribute("input_tokens", response.usage.prompt_tokens)
+                    llm_span.set_attribute("output_tokens", response.usage.completion_tokens)
         except BadRequestError:
             response = groq.chat.completions.create(
                 model="llama-3.3-70b-versatile",
@@ -273,10 +299,17 @@ async def _run_groq(
             break
 
         tool_calls_payload = [
-            {"id": tc.id, "type": "function", "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+            {
+                "id": tc.id, "type": "function",
+                "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+            }
             for tc in assistant_msg.tool_calls
         ]
-        messages_for_llm.append({"role": "assistant", "content": assistant_msg.content or "", "tool_calls": tool_calls_payload})
+        messages_for_llm.append({
+            "role": "assistant",
+            "content": assistant_msg.content or "",
+            "tool_calls": tool_calls_payload,
+        })
 
         for tc in assistant_msg.tool_calls:
             fn_name = tc.function.name
@@ -285,7 +318,12 @@ async def _run_groq(
             except json.JSONDecodeError:
                 args = {}
 
-            tool_result = await execute_tool(fn_name, args, session, user_id=user_id, conversation_id=conversation_id)
+            with create_span("tool.call", {"tool_name": fn_name}) as tool_span:
+                tool_result = await execute_tool(
+                    fn_name, args, session,
+                    user_id=user_id, conversation_id=conversation_id,
+                )
+                tool_span.set_attribute("result_chars", len(tool_result))
             tool_calls_made.append({"tool": fn_name, "args": args, "result": tool_result})
             messages_for_llm.append({"role": "tool", "tool_call_id": tc.id, "content": tool_result})
 
@@ -299,7 +337,7 @@ async def _run_groq(
         response = groq.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=messages_for_llm + [
-                {"role": "user", "content": "Please give me a final answer based on the tool results above."}
+                {"role": "user", "content": "Please give me a final answer based on the tool results above."}  # noqa: E501
             ],
             max_tokens=512,
         )

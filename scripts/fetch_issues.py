@@ -10,7 +10,7 @@ Usage:
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import github
@@ -85,7 +85,7 @@ def fetch() -> None:
                     if remaining < 100:
                         reset = gh.get_rate_limit().core.reset
                         wait = max(
-                            (reset.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).seconds + 5, 0
+                            (reset.replace(tzinfo=UTC) - datetime.now(UTC)).seconds + 5, 0
                         )
                         print(f"  rate limit low ({remaining}) — sleeping {wait}s")
                         time.sleep(wait)

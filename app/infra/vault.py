@@ -57,6 +57,8 @@ def seed_dev_secrets() -> None:
             "tracing/endpoint": {"value": "http://jaeger:4317"},
         }
         for path, data in secrets.items():
-            client.secrets.kv.v2.create_or_update_secret(path=path, secret=data, mount_point="secret")
+            client.secrets.kv.v2.create_or_update_secret(
+                path=path, secret=data, mount_point="secret"
+            )
     except Exception:
         pass  # Dev seed is best-effort

@@ -21,7 +21,9 @@ class IssueORM(Base):
     split: Mapped[str] = mapped_column(VARCHAR(10), nullable=False, index=True)
     repo: Mapped[str] = mapped_column(VARCHAR(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    closed_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, index=True)
+    closed_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, index=True
+    )
 
 
 class AuditLogORM(Base):
@@ -62,7 +64,9 @@ class MessageORM(Base):
     __tablename__ = "messages"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    conversation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     role: Mapped[str] = mapped_column(VARCHAR(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     tool_calls: Mapped[dict | None] = mapped_column(JSON, nullable=True)
@@ -87,7 +91,9 @@ class WidgetORM(Base):
     __tablename__ = "widgets"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    widget_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, unique=True, default=uuid.uuid4)
+    widget_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, unique=True, default=uuid.uuid4
+    )
     allowed_origins: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
     theme: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     greeting: Mapped[str] = mapped_column(Text, nullable=False, default="Hi! How can I help you?")

@@ -74,7 +74,8 @@ def test_ner_returns_entities(client):
 def test_summarize_returns_short_text(client):
     resp = client.post("/summarize", json={
         "title": "Memory leak in GridSearchCV with large datasets",
-        "body": "When running GridSearchCV on a dataset with 100k samples, memory usage grows unboundedly across folds.",
+        "body": "When running GridSearchCV on a dataset with 100k samples,"
+                " memory usage grows unboundedly across folds.",
     })
     assert resp.status_code == 200
     summary = resp.json()["summary"]

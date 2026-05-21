@@ -47,7 +47,8 @@ ANSWER_SYSTEM = (
 )
 
 FAITHFULNESS_PROMPT = """\
-You are an evaluation judge. Assess whether an AI-generated answer is faithful to the provided context.
+You are an evaluation judge.
+Assess whether an AI-generated answer is faithful to the provided context.
 
 Context (retrieved GitHub issues):
 {context}
@@ -56,7 +57,8 @@ Question: {question}
 
 Answer: {answer}
 
-Faithfulness measures whether every factual claim in the answer is directly supported by the context above.
+Faithfulness measures whether every factual claim in the answer
+is directly supported by the context above.
 - 1.0 = every claim is explicitly in the context
 - 0.5 = most claims are supported; minor extrapolations
 - 0.0 = the answer contains unsupported or fabricated claims
@@ -64,7 +66,8 @@ Faithfulness measures whether every factual claim in the answer is directly supp
 Reply with a single decimal number between 0.0 and 1.0. Nothing else."""
 
 RELEVANCY_PROMPT = """\
-You are an evaluation judge. Assess whether an AI-generated answer is relevant to the question asked.
+You are an evaluation judge.
+Assess whether an AI-generated answer is relevant to the question asked.
 
 Question: {question}
 
@@ -100,7 +103,7 @@ def main() -> None:
     import groq as _groq
     client = _groq.Groq(api_key=groq_key)
 
-    golden = [json.loads(l) for l in GOLDEN_PATH.read_text().splitlines() if l.strip()]
+    golden = [json.loads(line) for line in GOLDEN_PATH.read_text().splitlines() if line.strip()]
     print(f"Golden set: {len(golden)} examples\n")
 
     # ── Build local corpus (same as eval_rag.py) ──────────────────────────────
@@ -116,7 +119,7 @@ def main() -> None:
 
     texts = [make_text(r["title"], r["body"]) for r in all_records]
     numbers = [r["number"] for r in all_records]
-    num_to_idx = {n: i for i, n in enumerate(numbers)}
+    _num_to_idx = {n: i for i, n in enumerate(numbers)}
 
     print(f"Building BM25 index over {len(texts)} issues...")
     bm25 = BM25Okapi([t.lower().split() for t in texts])
@@ -152,7 +155,11 @@ def main() -> None:
         top_indices = [i for _, i in ranked[:top_k]]
 
         return [
-            {"number": numbers[i], "title": all_records[i]["title"], "body": all_records[i].get("body", "")}
+            {
+                "number": numbers[i],
+                "title": all_records[i]["title"],
+                "body": all_records[i].get("body", ""),
+            }
             for i in top_indices
         ]
 

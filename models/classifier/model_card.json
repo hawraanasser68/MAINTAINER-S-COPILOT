@@ -12,24 +12,58 @@
   "hyperparameters": {
     "lr": 2e-05,
     "epochs": 3,
-    "batch_size": 32,
+    "batch_size": 16,
     "weight_decay": 0.01,
     "class_weight": "balanced"
   },
-  "training_data_hash": "a4b70343a462e231f353acf4a8abac158830f86195eb9856f854ab43a3a77743",
+  "training_data_hash": "3891adbfccc24bf77edd74fc75eafb45acca6038fcff72c0bdad41542c247e8a",
   "metrics": {
-    "val_macro_f1": 0.8408,
-    "test_macro_f1": 0.823,
-    "test_accuracy": 0.843,
+    "val_macro_f1": 0.85,
+    "test_macro_f1": 0.8261,
+    "test_accuracy": 0.848,
     "per_class_f1": {
-      "bug": 0.8816,
-      "feature": 0.8597,
-      "docs": 0.8714,
-      "question": 0.6795
+      "bug": 0.8852,
+      "feature": 0.8635,
+      "docs": 0.8685,
+      "question": 0.6873
     },
-    "latency_ms_per_sample": 107.556
+    "latency_ms_per_sample": 155.072,
+    "confusion_matrix": {
+      "labels": [
+        "bug",
+        "feature",
+        "docs",
+        "question"
+      ],
+      "matrix": [
+        [
+          370,
+          6,
+          18,
+          27
+        ],
+        [
+          14,
+          193,
+          5,
+          10
+        ],
+        [
+          13,
+          5,
+          185,
+          2
+        ],
+        [
+          18,
+          21,
+          13,
+          100
+        ]
+      ]
+    }
   },
   "artifact_path": "models/classifier",
-  "sha256": "88aa566243673a48e9c4a74c98f93194f3efb190a141efaa8372931d0f0b322e",
-  "train_time_s": 4622.0
+  "sha256": "2c1d5085c2871bfb42e641defeadb5fd521120df90329e216eb7a9afb79463e0",
+  "train_time_s": 5017.0
 }

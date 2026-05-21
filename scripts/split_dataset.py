@@ -40,7 +40,8 @@ def temporal_split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.Dat
     test = df.iloc[test_start:].copy()
 
     # Verify temporal boundary
-    assert train["closed_at"].max() <= val["closed_at"].min(), "Train/val temporal boundary violated"
+    assert train["closed_at"].max() <= val["closed_at"].min(), \
+        "Train/val temporal boundary violated"
     assert val["closed_at"].max() <= test["closed_at"].min(), "Val/test temporal boundary violated"
 
     return train, val, test

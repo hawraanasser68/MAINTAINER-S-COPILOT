@@ -10,7 +10,7 @@ Usage:
 import os
 import time
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from github import Github
 
@@ -91,7 +91,7 @@ def evaluate_repo(gh: Github, repo_name: str) -> dict:
                 remaining = gh.get_rate_limit().core.remaining
                 if remaining < 50:
                     reset = gh.get_rate_limit().core.reset
-                    wait = (reset.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).seconds + 5
+                    wait = (reset.replace(tzinfo=UTC) - datetime.now(UTC)).seconds + 5
                     print(f"  Rate limit low ({remaining} remaining) — waiting {wait}s")
                     time.sleep(wait)
             except Exception:
@@ -112,7 +112,9 @@ def evaluate_repo(gh: Github, repo_name: str) -> dict:
         "mapped": mapped,
         "coverage_pct": round(coverage, 1),
         "class_counts": dict(class_counts),
-        "missing_classes": [c for c in ["bug", "feature", "docs", "question"] if c not in class_counts],
+        "missing_classes": [
+            c for c in ["bug", "feature", "docs", "question"] if c not in class_counts
+        ],
         "imbalance_ratio": round(imbalance, 1),
         "empty_body_pct": round(empty_pct, 1),
         "years": dict(sorted(years.items())),

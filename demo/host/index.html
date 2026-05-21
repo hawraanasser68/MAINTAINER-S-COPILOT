@@ -158,12 +158,24 @@
 <!-- Hint bubble -->
 <div class="hint">💬 Try the AI assistant →</div>
 
-<!-- Embeddable widget -->
-<script
-  src="http://localhost:8080/widget.js"
-  data-widget-id="demo"
-  data-api-url="http://localhost:8000"
-></script>
+<!-- Embeddable widget — widget_id comes from ?widget_id=UUID in the URL -->
+<script>
+  (function () {
+    var widgetId = new URLSearchParams(location.search).get("widget_id");
+    if (!widgetId) {
+      var hint = document.createElement("div");
+      hint.style.cssText = "position:fixed;bottom:90px;right:20px;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 16px;font-size:12px;max-width:260px;z-index:9999";
+      hint.textContent = "Add ?widget_id=YOUR_UUID to the URL to load the widget.";
+      document.body.appendChild(hint);
+      return;
+    }
+    var s = document.createElement("script");
+    s.src = "http://localhost:8080/widget.js";
+    s.setAttribute("data-widget-id", widgetId);
+    s.setAttribute("data-api-url", "http://localhost:8000");
+    document.body.appendChild(s);
+  })();
+</script>
 
 </body>
 </html>

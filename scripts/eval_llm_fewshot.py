@@ -33,12 +33,14 @@ FEW_SHOT_EXAMPLES = [
     {
         "label": "bug",
         "title": "index type np.int32_t causes issue in _csr_polynomial_expansion",
-        "body": "I ran into an issue when trying to construct a polynomial expansion feature with a large sparse matrix input.",
+        "body": "I ran into an issue when trying to construct a polynomial expansion feature"
+                " with a large sparse matrix input.",
     },
     {
         "label": "bug",
         "title": "LatentDirichletAllocation's number of iterations",
-        "body": "When I print lda.n_iter_ after fitting, it reports 81. That's more than max_iter=10.",
+        "body": "When I print lda.n_iter_ after fitting, it reports 81."
+                " That's more than max_iter=10.",
     },
     {
         "label": "feature",
@@ -48,7 +50,8 @@ FEW_SHOT_EXAMPLES = [
     {
         "label": "feature",
         "title": "Possibility of setting weight coefficients in OPTICS algorithm",
-        "body": "We are very interested in enhancement of OPTICS. It would be very important to support sample weights.",
+        "body": "We are very interested in enhancement of OPTICS."
+                " It would be very important to support sample weights.",
     },
     {
         "label": "docs",
@@ -58,17 +61,20 @@ FEW_SHOT_EXAMPLES = [
     {
         "label": "docs",
         "title": "model_selection.StratifiedKFold should not require the data array",
-        "body": "When importing sklearn.cross_validation I get a DeprecationWarning saying to use sklearn.model_selection instead.",
+        "body": "When importing sklearn.cross_validation I get a DeprecationWarning"
+                " saying to use sklearn.model_selection instead.",
     },
     {
         "label": "question",
         "title": "Add an example about how to visualize the results of GridSearchCV",
-        "body": "I think it would be useful to add an example about how to visualize GridSearchCV results with two hyperparameters.",
+        "body": "I think it would be useful to add an example about how to visualize"
+                " GridSearchCV results with two hyperparameters.",
     },
     {
         "label": "question",
         "title": "Matplotlib warnings in CircleCI after switching to matplotlib 3.X",
-        "body": "We get warnings: UserWarning: Matplotlib is currently using agg, which is a non-GUI backend.",
+        "body": "We get warnings: UserWarning: Matplotlib is currently using agg,"
+                " which is a non-GUI backend.",
     },
 ]
 
@@ -162,9 +168,13 @@ def main() -> None:
         preds.append(pred)
         latencies.append(latency_ms)
         if (i + 1) % 20 == 0:
-            acc_so_far = sum(p == label for p, label in zip(preds, sample_labels[:len(preds)])) / len(preds)
+            n = len(preds)
+            acc_so_far = sum(p == label for p, label in zip(preds, sample_labels[:n])) / n
             status = "✓" if pred == true_label else "✗"
-            print(f"  [{i+1}/{len(sample_texts)}] running_acc={acc_so_far:.3f}  {status} pred={pred} true={true_label}")
+            print(
+                f"  [{i+1}/{len(sample_texts)}] running_acc={acc_so_far:.3f}"
+                f"  {status} pred={pred} true={true_label}"
+            )
 
     accuracy = accuracy_score(sample_labels, preds)
     macro_f1 = f1_score(sample_labels, preds, average="macro", labels=CLASSES)

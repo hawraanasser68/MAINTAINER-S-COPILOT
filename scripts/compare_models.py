@@ -74,7 +74,7 @@ def main() -> None:
     rows.sort(key=lambda r: r["macro_f1"], reverse=True)
 
     print("\n## Three-Way Model Comparison\n")
-    print("| Model | Accuracy | Macro-F1 | bug F1 | feature F1 | docs F1 | question F1 | Latency | Cost |")
+    print("| Model | Accuracy | Macro-F1 | bug F1 | feature F1 | docs F1 | question F1 | Latency | Cost |")  # noqa: E501
     print("|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         pc = r["per_class"]
@@ -91,7 +91,10 @@ def main() -> None:
         )
 
     best = rows[0]
-    print(f"\n**Deployment recommendation**: {best['model']} — highest macro-F1 ({best['macro_f1']:.4f}).")
+    print(
+        f"\n**Deployment recommendation**: {best['model']}"
+        f" — highest macro-F1 ({best['macro_f1']:.4f})."
+    )
     print(f"Note: {best['note']}")
 
 

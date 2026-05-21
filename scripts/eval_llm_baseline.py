@@ -31,7 +31,8 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 MODEL = "llama-3.1-8b-instant"
 
-SYSTEM_PROMPT = """You are a GitHub issue classifier. Given a GitHub issue title and body, classify it into exactly one of these four categories:
+SYSTEM_PROMPT = """You are a GitHub issue classifier.
+Given a GitHub issue title and body, classify it into exactly one of these four categories:
 
 - bug: A defect, crash, unexpected behaviour, or regression
 - feature: A request for new functionality or enhancement
@@ -100,9 +101,13 @@ def main() -> None:
         preds.append(pred)
         latencies.append(latency_ms)
         if (i + 1) % 20 == 0:
-            acc_so_far = sum(p == label for p, label in zip(preds, sample_labels[:len(preds)])) / len(preds)
+            n = len(preds)
+            acc_so_far = sum(p == label for p, label in zip(preds, sample_labels[:n])) / n
             status = "✓" if pred == true_label else "✗"
-            print(f"  [{i+1}/{len(sample_texts)}] running_acc={acc_so_far:.3f}  {status} pred={pred} true={true_label}")
+            print(
+                f"  [{i+1}/{len(sample_texts)}] running_acc={acc_so_far:.3f}"
+                f"  {status} pred={pred} true={true_label}"
+            )
 
     accuracy  = accuracy_score(sample_labels, preds)
     macro_f1  = f1_score(sample_labels, preds, average="macro", labels=CLASSES)

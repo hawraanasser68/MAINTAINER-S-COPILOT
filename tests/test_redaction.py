@@ -129,7 +129,10 @@ def test_span_attributes_are_redacted() -> None:
 
     # Span was started with redacted attributes — check what was passed to start_as_current_span
     call_kwargs = mock_tracer.start_as_current_span.call_args
-    attrs_passed = call_kwargs[1].get("attributes", {}) or call_kwargs[0][1] if len(call_kwargs[0]) > 1 else {}
+    attrs_passed = (
+        call_kwargs[1].get("attributes", {}) or call_kwargs[0][1]
+        if len(call_kwargs[0]) > 1 else {}
+    )
     for v in attrs_passed.values():
         if isinstance(v, str):
             assert FAKE_OPENAI_KEY not in v, "Raw API key found in span attributes"

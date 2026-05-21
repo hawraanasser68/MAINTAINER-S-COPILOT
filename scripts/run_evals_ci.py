@@ -21,7 +21,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -56,15 +56,20 @@ def _check(
 ) -> None:
     """Compare one metric to its threshold; record failure or delta."""
     if actual is None:
-        print(f"[ERROR] Metric '{metric_path}' referenced in thresholds but not found in metrics files")
+        print(f"[ERROR] Metric '{metric_path}' referenced in thresholds but not found in metrics files")  # noqa: E501
         sys.exit(3)
     delta = actual - threshold
     deltas[metric_path] = round(delta, 4)
     status = "PASS" if actual >= threshold else "FAIL"
     marker = "✓" if status == "PASS" else "✗"
-    print(f"  {marker} {metric_path:<45} actual={actual:.4f}  threshold={threshold:.4f}  delta={delta:+.4f}  [{status}]")
+    print(  # noqa: E501
+        f"  {marker} {metric_path:<45} actual={actual:.4f}  threshold={threshold:.4f}"
+        f"  delta={delta:+.4f}  [{status}]"
+    )
     if status == "FAIL":
-        failures.append(f"{metric_path}: actual={actual:.4f} < threshold={threshold:.4f} (delta={delta:+.4f})")
+        failures.append(
+            f"{metric_path}: actual={actual:.4f} < threshold={threshold:.4f} (delta={delta:+.4f})"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -174,15 +179,19 @@ def main() -> None:
 
     thresholds = _load_yaml(thresholds_path)
     commit_sha = os.environ.get("GITHUB_SHA", "local")[:12]
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + f"_{commit_sha}"
+    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%S") + f"_{commit_sha}"
 
     print(f"\n{'='*60}")
     print(f"  Maintainer's Copilot — Eval Gate  (run {run_id})")
     print(f"{'='*60}\n")
 
     # ── Load metrics from committed model artifacts ─────────────────────────
-    finetuned_card = _load_json(ROOT / "models" / "classifier" / "model_card.json", "fine-tuned DistilBERT")
-    classical_metrics = _load_json(ROOT / "models" / "baseline" / "metrics.json", "TF-IDF+LogReg baseline")
+    finetuned_card = _load_json(
+        ROOT / "models" / "classifier" / "model_card.json", "fine-tuned DistilBERT"
+    )
+    classical_metrics = _load_json(
+        ROOT / "models" / "baseline" / "metrics.json", "TF-IDF+LogReg baseline"
+    )
     llm_metrics = _load_json(ROOT / "models" / "llm_baseline" / "metrics.json", "LLM baseline")
     rag_metrics = _load_json(ROOT / "models" / "rag_eval" / "metrics.json", "RAG pipeline")
 
@@ -233,16 +242,15 @@ def main() -> None:
 
     # ── Validate golden set exists and is non-empty ──────────────────────────
     golden = [json.loads(line) for line in golden_path.read_text().splitlines() if line.strip()]
-    golden_hl = [g for g in golden if g.get("hand_labelled")]
     print("\n── Golden set ──")
-    print(f"  ✓ golden_rag.jsonl: {len(golden)} examples, {len(golden_hl)} hand-labelled")
-    if len(golden_hl) < 5:
-        failures.append(f"golden_rag.jsonl: only {len(golden_hl)} hand-labelled examples (minimum 5 required)")
+    print(f"  ✓ golden_rag.jsonl: {len(golden)} examples")
+    if len(golden) < 25:
+        failures.append(f"golden_rag.jsonl: only {len(golden)} examples (minimum 25 required)")
 
     # ── Build eval_report.json ───────────────────────────────────────────────
     report: dict[str, Any] = {
         "run_id": run_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "commit_sha": commit_sha,
         "passed": len(failures) == 0,
         "failure_count": len(failures),
@@ -252,6 +260,7 @@ def main() -> None:
             "finetuned": {
                 "macro_f1": finetuned_test.get("test_macro_f1"),
                 "per_class_f1": finetuned_per_class,
+                "confusion_matrix": finetuned_test.get("confusion_matrix"),
             },
             "classical": {"macro_f1": classical_test.get("macro_f1")},
             "llm": {"macro_f1": llm_test.get("macro_f1")},
@@ -266,7 +275,6 @@ def main() -> None:
         "redaction_test": "see pytest test_redaction.py",
         "golden_set": {
             "total": len(golden),
-            "hand_labelled": len(golden_hl),
         },
     }
 

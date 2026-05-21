@@ -6,8 +6,9 @@ from pathlib import Path
 import structlog
 import yaml
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.auth import auth_backend, fastapi_users
+from app.api.auth import _init_jwt_secret, auth_backend, fastapi_users
 from app.api.chat import router as chat_router
 from app.api.exceptions import register_exception_handlers
 from app.api.health import router as health_router
@@ -46,7 +47,7 @@ def _check_eval_thresholds() -> None:
         if isinstance(obj, dict):
             for k, v in obj.items():
                 _walk(v, f"{path_}.{k}" if path_ else k)
-        elif isinstance(obj, (int, float)) and obj == 0:
+        elif isinstance(obj, int | float) and obj == 0:
             raise InfrastructureError(
                 "eval_thresholds",
                 f"threshold '{path_}' is 0 — fill in eval_thresholds.yaml before starting",
@@ -76,6 +77,15 @@ def _boot(log: structlog.BoundLogger) -> None:
     otlp_endpoint = vault.get_secret("tracing/endpoint")
     groq_api_key = vault.get_secret("llm/groq_api_key")
     os.environ["GROQ_API_KEY"] = groq_api_key
+
+    # 3b. JWT signing key — replaces the module-level fallback string
+    try:
+        jwt_secret = vault.get_secret("jwt/signing_key")
+        if jwt_secret:
+            _init_jwt_secret(jwt_secret)
+            log.info("boot.jwt.configured_from_vault")
+    except Exception as exc:
+        log.warning("boot.jwt.using_dev_fallback", error=str(exc))
 
     # Anthropic key is optional — if absent the agent falls back to Groq automatically.
     try:
@@ -144,6 +154,13 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:8090", "http://localhost:8080"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(rag_router)

@@ -35,7 +35,7 @@ class BM25Index:
         return pickle.dumps(self)
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> "BM25Index":
+    def from_bytes(cls, data: bytes) -> BM25Index:
         return pickle.loads(data)
 
 

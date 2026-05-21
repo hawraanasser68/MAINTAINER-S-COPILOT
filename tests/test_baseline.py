@@ -28,7 +28,7 @@ def test_model_predicts_all_classes(pipeline):
         ("IndexError in fit method when input has NaN", "Traceback shows line 42 in _fit_internal"),
         ("Add support for custom loss functions", "It would be useful to pass a callable loss"),
         ("Fix typo in LogisticRegression docstring", "The formula on line 3 is missing a bracket"),
-        ("How do I use GridSearchCV with pipelines?", "I want to tune both the vectorizer and classifier"),
+        ("How do I use GridSearchCV with pipelines?", "I want to tune both the vectorizer and classifier"),  # noqa: E501
     ]
     texts = [f"{t} {b}" for t, b in samples]
     preds = pipeline.predict(texts)

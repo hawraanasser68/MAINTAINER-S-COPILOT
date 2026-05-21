@@ -56,7 +56,9 @@ async def test_agent_plain_answer() -> None:
     convo_id = uuid.uuid4()
 
     groq_mock = MagicMock()
-    groq_mock.chat.completions.create.return_value = _make_groq_text_response("This is a plain answer.")
+    groq_mock.chat.completions.create.return_value = _make_groq_text_response(  # noqa: E501
+        "This is a plain answer."
+    )
 
     session = AsyncMock()
     session.execute = AsyncMock(return_value=MagicMock(
@@ -66,7 +68,7 @@ async def test_agent_plain_answer() -> None:
     with patch("app.services.agent._get_groq", return_value=groq_mock), \
          patch("app.services.short_term_memory.get_history", new_callable=AsyncMock, return_value=[]), \
          patch("app.services.short_term_memory.set_history", new_callable=AsyncMock), \
-         patch("app.services.long_term_memory.retrieve_memories", new_callable=AsyncMock, return_value=[]):
+         patch("app.services.long_term_memory.retrieve_memories", new_callable=AsyncMock, return_value=[]):  # noqa: E501
 
         from app.services.agent import run_agent
         result = await run_agent(convo_id, "Hello!", session)
@@ -105,8 +107,8 @@ async def test_agent_single_tool_call() -> None:
     with patch("app.services.agent._get_groq", return_value=groq_mock), \
          patch("app.services.short_term_memory.get_history", new_callable=AsyncMock, return_value=[]), \
          patch("app.services.short_term_memory.set_history", new_callable=AsyncMock), \
-         patch("app.services.long_term_memory.retrieve_memories", new_callable=AsyncMock, return_value=[]), \
-         patch("app.services.tools.execute_tool",
+         patch("app.services.long_term_memory.retrieve_memories", new_callable=AsyncMock, return_value=[]),\
+         patch("app.services.tools.execute_tool",  # noqa: E501
                new_callable=AsyncMock,
                return_value="Classification: **bug** (confidence: 92.0%)"):
 
@@ -142,8 +144,8 @@ async def test_agent_safety_limit() -> None:
          patch("app.services.agent._MAX_TOOL_ROUNDS", 3), \
          patch("app.services.short_term_memory.get_history", new_callable=AsyncMock, return_value=[]), \
          patch("app.services.short_term_memory.set_history", new_callable=AsyncMock), \
-         patch("app.services.long_term_memory.retrieve_memories", new_callable=AsyncMock, return_value=[]), \
-         patch("app.services.tools.execute_tool",
+         patch("app.services.long_term_memory.retrieve_memories", new_callable=AsyncMock, return_value=[]),\
+         patch("app.services.tools.execute_tool",  # noqa: E501
                new_callable=AsyncMock,
                return_value="Search result"):
 

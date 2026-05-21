@@ -23,8 +23,8 @@ async def client(mock_boot):
 async def test_health_all_ok(client):
     with (
         patch("app.api.health.vault.check_connectivity", return_value=True),
-        patch("app.api.health.database.check_connectivity", new_callable=AsyncMock, return_value=True),
-        patch("app.api.health.redis_client.check_connectivity", new_callable=AsyncMock, return_value=True),
+        patch("app.api.health.database.check_connectivity", new_callable=AsyncMock, return_value=True),  # noqa: E501
+        patch("app.api.health.redis_client.check_connectivity", new_callable=AsyncMock, return_value=True),  # noqa: E501
         patch("app.api.health.minio_client.check_connectivity", return_value=True),
     ):
         response = await client.get("/health")
@@ -42,8 +42,8 @@ async def test_health_all_ok(client):
 async def test_health_degraded_when_db_down(client):
     with (
         patch("app.api.health.vault.check_connectivity", return_value=True),
-        patch("app.api.health.database.check_connectivity", new_callable=AsyncMock, return_value=False),
-        patch("app.api.health.redis_client.check_connectivity", new_callable=AsyncMock, return_value=True),
+        patch("app.api.health.database.check_connectivity", new_callable=AsyncMock, return_value=False),  # noqa: E501
+        patch("app.api.health.redis_client.check_connectivity", new_callable=AsyncMock, return_value=True),  # noqa: E501
         patch("app.api.health.minio_client.check_connectivity", return_value=True),
     ):
         response = await client.get("/health")
@@ -67,8 +67,8 @@ async def test_error_response_shape(client):
 async def test_request_id_in_response_headers(client):
     with (
         patch("app.api.health.vault.check_connectivity", return_value=True),
-        patch("app.api.health.database.check_connectivity", new_callable=AsyncMock, return_value=True),
-        patch("app.api.health.redis_client.check_connectivity", new_callable=AsyncMock, return_value=True),
+        patch("app.api.health.database.check_connectivity", new_callable=AsyncMock, return_value=True),  # noqa: E501
+        patch("app.api.health.redis_client.check_connectivity", new_callable=AsyncMock, return_value=True),  # noqa: E501
         patch("app.api.health.minio_client.check_connectivity", return_value=True),
     ):
         response = await client.get("/health")

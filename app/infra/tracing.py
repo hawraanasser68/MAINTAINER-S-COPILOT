@@ -1,5 +1,6 @@
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator
+from typing import Any
 
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource

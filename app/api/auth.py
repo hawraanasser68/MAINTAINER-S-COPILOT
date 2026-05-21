@@ -30,6 +30,14 @@ class UserManager(UUIDIDMixin, BaseUserManager[UserORM, uuid.UUID]):
     verification_token_secret = SECRET
 
 
+def _init_jwt_secret(secret: str) -> None:
+    """Called by _boot() after Vault is ready to replace the dev fallback."""
+    global SECRET
+    SECRET = secret
+    UserManager.reset_password_token_secret = secret
+    UserManager.verification_token_secret = secret
+
+
 async def get_user_manager(user_db=Depends(get_user_db)):
     yield UserManager(user_db)
 

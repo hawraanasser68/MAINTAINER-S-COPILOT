@@ -122,7 +122,7 @@ async def test_long_term_write_inserts_and_commits() -> None:
     session.execute = AsyncMock()
     session.commit = AsyncMock()
 
-    with patch("app.services.long_term_memory.embed_query", return_value=[0.1] * 384):
+    with patch("app.services.long_term_memory.async_embed_query", new=AsyncMock(return_value=[0.1] * 384)):  # noqa: E501
         from app.services.long_term_memory import write_memory
         memory_id = await write_memory(session, "scikit-learn uses semver", user_id=None)
 
@@ -149,7 +149,7 @@ async def test_long_term_retrieve_returns_rows() -> None:
     session = AsyncMock()
     session.execute = AsyncMock(return_value=mock_result)
 
-    with patch("app.services.long_term_memory.embed_query", return_value=[0.1] * 384):
+    with patch("app.services.long_term_memory.async_embed_query", new=AsyncMock(return_value=[0.1] * 384)):  # noqa: E501
         from app.services.long_term_memory import retrieve_memories
         results = await retrieve_memories(session, "what version scheme?", top_k=1)
 
@@ -171,7 +171,7 @@ async def test_long_term_write_creates_audit_entry() -> None:
     session.execute = capture_execute
     session.commit = AsyncMock()
 
-    with patch("app.services.long_term_memory.embed_query", return_value=[0.0] * 384):
+    with patch("app.services.long_term_memory.async_embed_query", new=AsyncMock(return_value=[0.0] * 384)):  # noqa: E501
         from app.services.long_term_memory import write_memory
         await write_memory(session, "test memory fact", user_id=uuid.uuid4())
 

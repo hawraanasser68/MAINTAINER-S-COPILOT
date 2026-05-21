@@ -12,6 +12,7 @@ from groq import Groq
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infra.bm25_index import get_index
+from app.infra.tracing import create_span
 from app.repositories.issue_repo import search_dense
 from app.services.query_rewriter import rewrite_query
 from app.services.retrieval import embed_query, reciprocal_rank_fusion, rerank
@@ -57,41 +58,51 @@ async def run_rag(
     """
     t0 = time.perf_counter()
 
-    # Step 1: query rewriting (HyDE)
-    if use_hyde:
-        rewritten_query, query_vec = rewrite_query(query)
-    else:
-        rewritten_query = query
-        query_vec = embed_query(query)
+    with create_span("rag.retrieval", {"top_k": top_k, "use_hyde": use_hyde}) as rag_span:
+        # Step 1: query rewriting (HyDE)
+        if use_hyde:
+            rewritten_query, query_vec = rewrite_query(query)
+        else:
+            rewritten_query = query
+            query_vec = embed_query(query)
 
-    # Step 2: hybrid retrieval
-    dense_results = await search_dense(session, query_vec, top_k=20, source_type=source_type)
+        # Step 2: hybrid retrieval
+        dense_results = await search_dense(session, query_vec, top_k=20, source_type=source_type)
 
-    bm25_index = get_index()
-    bm25_results = bm25_index.search(rewritten_query, top_k=20)
+        bm25_index = get_index()
+        bm25_results = bm25_index.search(rewritten_query, top_k=20)
 
-    fused = reciprocal_rank_fusion(dense_results, bm25_results)[:20]
+        fused = reciprocal_rank_fusion(dense_results, bm25_results)[:20]
 
-    # Step 3: rerank
-    chunks = rerank(rewritten_query, fused, top_k=top_k)
+        # Step 3: rerank
+        chunks = rerank(rewritten_query, fused, top_k=top_k)
 
-    # Step 4: answer generation
-    context = _build_context(chunks)
-    try:
-        groq = get_groq()
-        resp = groq.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            max_tokens=300,
-            messages=[
-                {"role": "system", "content": ANSWER_SYSTEM},
-                {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"},
-            ],
-        )
-        answer = resp.choices[0].message.content.strip()
-    except Exception as e:
-        answer = f"[Answer generation failed: {e}]"
+        # Step 4: answer generation
+        context_str = _build_context(chunks)
+        try:
+            groq = get_groq()
+            with create_span("llm.groq", {"model": "llama-3.1-8b-instant"}) as llm_span:
+                _t = time.perf_counter()
+                resp = groq.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    max_tokens=300,
+                    messages=[
+                        {"role": "system", "content": ANSWER_SYSTEM},
+                        {"role": "user", "content": f"Context:\n{context_str}\n\nQuestion: {query}"},  # noqa: E501
+                    ],
+                )
+                llm_span.set_attribute("latency_ms", round((time.perf_counter() - _t) * 1000, 1))
+                if resp.usage:
+                    llm_span.set_attribute("input_tokens", resp.usage.prompt_tokens)
+                    llm_span.set_attribute("output_tokens", resp.usage.completion_tokens)
+            answer = resp.choices[0].message.content.strip()
+        except Exception as e:
+            answer = f"[Answer generation failed: {e}]"
 
-    latency_ms = round((time.perf_counter() - t0) * 1000, 1)
+        latency_ms = round((time.perf_counter() - t0) * 1000, 1)
+        rag_span.set_attribute("latency_ms", latency_ms)
+        rag_span.set_attribute("num_chunks", len(chunks))
+        rag_span.set_attribute("model_used", "llama-3.1-8b-instant")
 
     return {
         "answer": answer,

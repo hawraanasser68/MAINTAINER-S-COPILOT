@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -182,7 +182,7 @@ async def execute_tool(
             try:
                 snapshot = {
                     "conversation_id": str(conversation_id) if conversation_id else None,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "query": query,
                     "rewritten_query": rag_result.get("rewritten_query"),
                     "top_k": top_k,
@@ -199,7 +199,7 @@ async def execute_tool(
                     "model_used": rag_result.get("model_used"),
                     "latency_ms": rag_result.get("latency_ms"),
                 }
-                ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+                ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%f")
                 key = f"{conversation_id or 'unknown'}/{ts}.json"
                 minio.upload(_RAG_SNAPSHOT_BUCKET, key, json.dumps(snapshot, indent=2))
             except Exception:

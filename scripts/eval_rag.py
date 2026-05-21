@@ -10,8 +10,10 @@ RAG ablation study — 6 pipeline variants.
                             (requires GROQ_API_KEY; skipped if not set)
 
 Usage:
-    python scripts/eval_rag.py
-    GROQ_API_KEY=sk-... python scripts/eval_rag.py   # enables HyDE variant
+    python scripts/eval_rag.py                        # all pipelines, no HyDE
+    GROQ_API_KEY=sk-... python scripts/eval_rag.py    # all pipelines + HyDE
+    GROQ_API_KEY=sk-... python scripts/eval_rag.py --hyde-compare
+                                                      # production vs HyDE only
 
 Outputs:
     models/rag_eval/metrics.json
@@ -19,6 +21,7 @@ Outputs:
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -90,6 +93,14 @@ def hyde_rewrite(query: str, client) -> str:  # type: ignore[no-untyped-def]
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--hyde-compare",
+        action="store_true",
+        help="Run only hybrid_rerank vs hybrid_rerank_hyde (requires GROQ_API_KEY)",
+    )
+    args = parser.parse_args()
+
     golden = [json.loads(line) for line in GOLDEN_PATH.read_text().splitlines() if line.strip()]
     eval_set = [g for g in golden if g["ground_truth_issue_numbers"]]
     print(f"Golden set: {len(golden)} total, {len(eval_set)} with ground-truth issue numbers\n")
@@ -102,6 +113,9 @@ def main() -> None:
         groq_client = _groq.Groq(api_key=groq_api_key)
         print("GROQ_API_KEY found — HyDE variant enabled.")
     else:
+        if args.hyde_compare:
+            print("ERROR: --hyde-compare requires GROQ_API_KEY to be set.")
+            sys.exit(1)
         print("GROQ_API_KEY not set — HyDE variant will be skipped.")
 
     # Load models
@@ -182,15 +196,21 @@ def main() -> None:
         fused = rrf(dense_search(hyp, 20), bm25_search(hyp, 20))[:20]
         return rerank(q, fused, top_k=5)  # rerank with original query for accuracy
 
-    pipelines: dict[str, object] = {
-        "dense_only":         p_dense,
-        "bm25_only":          p_bm25,
-        "hybrid_no_rerank":   p_hybrid,
-        "dense_rerank":       p_dense_rerank,
-        "hybrid_rerank":      p_hybrid_rerank,
-    }
-    if groq_client:
-        pipelines["hybrid_rerank_hyde"] = p_hybrid_rerank_hyde
+    if args.hyde_compare:
+        pipelines: dict[str, object] = {
+            "hybrid_rerank":      p_hybrid_rerank,
+            "hybrid_rerank_hyde": p_hybrid_rerank_hyde,
+        }
+    else:
+        pipelines = {
+            "dense_only":         p_dense,
+            "bm25_only":          p_bm25,
+            "hybrid_no_rerank":   p_hybrid,
+            "dense_rerank":       p_dense_rerank,
+            "hybrid_rerank":      p_hybrid_rerank,
+        }
+        if groq_client:
+            pipelines["hybrid_rerank_hyde"] = p_hybrid_rerank_hyde
 
     # ── Evaluate all pipelines ────────────────────────────────────────────────
 
@@ -231,35 +251,47 @@ def main() -> None:
 
     print(f"{'='*55}")
 
-    # Improvement of each over dense_only baseline
-    baseline_h = summary["dense_only"]["hit_at_5"]
-    baseline_m = summary["dense_only"]["mrr_at_10"]
-    print(f"\n  Deltas vs dense_only baseline:")
-    for name, s in summary.items():
-        if name == "dense_only":
-            continue
-        dh = s["hit_at_5"] - baseline_h
-        dm = s["mrr_at_10"] - baseline_m
-        print(f"  {name:<24}  hit@5 {dh:+.4f}   MRR@10 {dm:+.4f}")
+    # Deltas vs baseline (dense_only in full run, hybrid_rerank in hyde-compare)
+    baseline_name = "hybrid_rerank" if args.hyde_compare else "dense_only"
+    if baseline_name in summary:
+        baseline_h = summary[baseline_name]["hit_at_5"]
+        baseline_m = summary[baseline_name]["mrr_at_10"]
+        print(f"\n  Deltas vs {baseline_name}:")
+        for name, s in summary.items():
+            if name == baseline_name:
+                continue
+            dh = s["hit_at_5"] - baseline_h
+            dm = s["mrr_at_10"] - baseline_m
+            print(f"  {name:<24}  hit@5 {dh:+.4f}   MRR@10 {dm:+.4f}")
 
     # ── Write metrics.json ────────────────────────────────────────────────────
 
-    metrics = {
-        "eval_set_size": len(eval_set),
-        "embedding_model": EMBED_MODEL,
-        "reranker": RERANK_MODEL,
-        # Original keys — keep for CI gate backward compatibility
-        "naive_dense": summary["dense_only"],
-        "advanced_hybrid_rerank": summary["hybrid_rerank"],
-        "delta": {
-            "hit_at_5":  round(summary["hybrid_rerank"]["hit_at_5"]  - summary["dense_only"]["hit_at_5"],  4),
-            "mrr_at_10": round(summary["hybrid_rerank"]["mrr_at_10"] - summary["dense_only"]["mrr_at_10"], 4),
-        },
-        # Full ablation results
-        "ablation": summary,
-    }
-
     out = OUTPUT_DIR / "metrics.json"
+    if args.hyde_compare and out.exists():
+        # Merge HyDE result into the existing ablation — don't overwrite the full run
+        existing = json.loads(out.read_text())
+        existing.setdefault("ablation", {}).update(summary)
+        metrics = existing
+    else:
+        metrics = {
+            "eval_set_size": len(eval_set),
+            "embedding_model": EMBED_MODEL,
+            "reranker": RERANK_MODEL,
+            # Original keys — keep for CI gate backward compatibility
+            "naive_dense": summary["dense_only"],
+            "advanced_hybrid_rerank": summary["hybrid_rerank"],
+            "delta": {
+                "hit_at_5": round(
+                    summary["hybrid_rerank"]["hit_at_5"] - summary["dense_only"]["hit_at_5"], 4
+                ),
+                "mrr_at_10": round(
+                    summary["hybrid_rerank"]["mrr_at_10"] - summary["dense_only"]["mrr_at_10"], 4
+                ),
+            },
+            # Full ablation results
+            "ablation": summary,
+        }
+
     out.write_text(json.dumps(metrics, indent=2))
     print(f"\nSaved → {out}")
 

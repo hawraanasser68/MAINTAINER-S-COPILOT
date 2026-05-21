@@ -17,9 +17,10 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id
 
-        with structlog.contextvars.bound_contextvars(request_id=request_id):
+        trace_id = get_current_trace_id()
+        request.state.trace_id = trace_id
+        with structlog.contextvars.bound_contextvars(request_id=request_id, trace_id=trace_id):
             response = await call_next(request)
-            trace_id = get_current_trace_id()
             response.headers["X-Request-ID"] = request_id
             response.headers["X-Trace-ID"] = trace_id
             return response

@@ -78,7 +78,9 @@ async def get_issues_by_numbers(
 ) -> list[dict[str, Any]]:
     """Fetch issue records by their numbers (used after BM25 retrieval)."""
     result = await session.execute(
-        text("SELECT number, title, body, label, source_type FROM issues WHERE number = ANY(:nums)"),
+        text(
+            "SELECT number, title, body, label, source_type FROM issues WHERE number = ANY(:nums)"
+        ),
         {"nums": numbers},
     )
     rows = result.mappings().all()

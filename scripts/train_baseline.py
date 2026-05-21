@@ -81,7 +81,7 @@ def main() -> None:
     test_f1 = f1_score(test_labels, test_preds, average="macro", labels=CLASSES)
     test_acc = accuracy_score(test_labels, test_preds)
 
-    print(f"Test accuracy={test_acc:.4f}  macro-F1={test_f1:.4f}  latency={latency_ms:.2f}ms/sample")
+    print(f"Test accuracy={test_acc:.4f}  macro-F1={test_f1:.4f}  latency={latency_ms:.2f}ms/sample")  # noqa: E501
 
     report = classification_report(test_labels, test_preds, labels=CLASSES, output_dict=True)
     per_class_f1 = {cls: round(report[cls]["f1-score"], 4) for cls in CLASSES}

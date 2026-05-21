@@ -8,10 +8,10 @@ from app.services.retrieval import reciprocal_rank_fusion
 # ── BM25 index ────────────────────────────────────────────────────────────────
 
 SAMPLE_RECORDS = [
-    {"number": 1, "title": "IndexError in fit with NaN", "body": "Raises IndexError when X has NaN values"},
-    {"number": 2, "title": "Add support for sparse matrices", "body": "Feature request for sparse input support"},
-    {"number": 3, "title": "Docs typo in LogisticRegression", "body": "Missing bracket in formula on line 3"},
-    {"number": 4, "title": "How to use GridSearchCV", "body": "Usage question about hyperparameter tuning"},
+    {"number": 1, "title": "IndexError in fit with NaN", "body": "Raises IndexError when X has NaN values"},  # noqa: E501
+    {"number": 2, "title": "Add support for sparse matrices", "body": "Feature request for sparse input support"},  # noqa: E501
+    {"number": 3, "title": "Docs typo in LogisticRegression", "body": "Missing bracket in formula on line 3"},  # noqa: E501
+    {"number": 4, "title": "How to use GridSearchCV", "body": "Usage question about hyperparameter tuning"},  # noqa: E501
 ]
 
 

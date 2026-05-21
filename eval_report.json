@@ -1,6 +1,6 @@
 {
-  "run_id": "20260520T112529_local",
-  "timestamp": "2026-05-20T11:25:29.614949+00:00",
+  "run_id": "20260520T210618_local",
+  "timestamp": "2026-05-20T21:06:18.599019+00:00",
   "commit_sha": "local",
   "passed": true,
   "failure_count": 0,
@@ -14,7 +14,9 @@
     "classification.classical.macro_f1": 0.0234,
     "classification.llm.macro_f1": 0.0312,
     "rag.hit_at_5": 0.1,
-    "rag.mrr_at_10": 0.0578
+    "rag.mrr_at_10": 0.0578,
+    "rag.faithfulness": 0.046,
+    "rag.answer_relevancy": 0.052
   },
   "classification": {
     "finetuned": {
@@ -36,6 +38,8 @@
   "rag": {
     "hit_at_5": 1.0,
     "mrr_at_10": 0.8778,
+    "faithfulness": 0.636,
+    "answer_relevancy": 0.832,
     "eval_set_size": 15
   },
   "redaction_test": "see pytest test_redaction.py",

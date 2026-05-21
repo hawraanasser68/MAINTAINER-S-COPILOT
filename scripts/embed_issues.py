@@ -64,7 +64,8 @@ async def embed_all() -> None:
             await session.execute(
                 text("""
                     INSERT INTO issues (number, title, body, label, source_type, embedding)
-                    VALUES (:number, :title, :body, :label, 'resolved_issue', CAST(:embedding AS vector))
+                    VALUES (:number, :title, :body, :label, 'resolved_issue',
+                        CAST(:embedding AS vector))
                     ON CONFLICT (number) DO UPDATE
                     SET embedding = CAST(:embedding AS vector),
                         source_type = 'resolved_issue'

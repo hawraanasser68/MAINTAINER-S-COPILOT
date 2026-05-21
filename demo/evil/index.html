@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evil Host — CSP Demo</title>
+  <style>
+    body { font-family: sans-serif; margin: 40px; background: #1a1a2e; color: #eee; }
+    h1 { color: #e74c3c; }
+    .box { background: #16213e; border: 1px solid #e74c3c; border-radius: 8px; padding: 24px; margin: 24px 0; }
+    p { line-height: 1.6; color: #ccc; }
+    code { background: #0f3460; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    iframe { width: 380px; height: 520px; border: 2px dashed #e74c3c; border-radius: 8px; }
+    .label { color: #e74c3c; font-weight: bold; font-size: 13px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>⚠️ Unauthorized Host — CSP Demo</h1>
+
+  <div class="box">
+    <p>
+      This page is served from <code>http://localhost:8099</code> — an origin that is
+      <strong>not</strong> in the widget's <code>allowed_origins</code> list.
+    </p>
+    <p>
+      The iframe below attempts to embed the widget. The API sets
+      <code>Content-Security-Policy: frame-ancestors http://localhost:8090</code>
+      on the response. The browser blocks the embed and logs a CSP violation in the console.
+    </p>
+    <p><strong>Open DevTools → Console to see the blocked error.</strong></p>
+  </div>
+
+  <div class="label">Attempted widget embed (should be blocked):</div>
+  <iframe id="evil-frame" title="Blocked widget embed"></iframe>
+
+  <script>
+    var params = new URLSearchParams(location.search);
+    var widgetId = params.get("widget_id") || "";
+    var apiUrl   = params.get("api_url") || "http://localhost:8000";
+    if (widgetId) {
+      document.getElementById("evil-frame").src =
+        apiUrl + "/widgets/embed/" + widgetId + "?widgetId=" + widgetId + "&apiUrl=" + apiUrl;
+    } else {
+      document.getElementById("evil-frame").srcdoc =
+        "<p style='padding:16px;font-family:sans-serif;color:#888'>Pass ?widget_id=UUID in the URL</p>";
+    }
+  </script>
+</body>
+</html>

@@ -18,6 +18,27 @@ services:
       retries: 10
       start_period: 5s
 
+  # ── Vault secret seeder (runs once, exits) ───────────────────────────────────
+  vault-init:
+    image: hashicorp/vault:1.17
+    container_name: vault-init
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+    command: >
+      sh -c "
+        vault kv put secret/llm/groq_api_key value=$$GROQ_API_KEY &&
+        vault kv put secret/llm/anthropic_api_key value=$$ANTHROPIC_API_KEY &&
+        vault kv put secret/jwt/signing_key value=$$JWT_SECRET
+      "
+    depends_on:
+      vault:
+        condition: service_healthy
+    restart: "no"
+
   # ── Database ─────────────────────────────────────────────────────────────────
   db:
     image: pgvector/pgvector:pg16
@@ -69,6 +90,27 @@ services:
       retries: 5
       start_period: 10s
 
+  # ── Experiment tracking ───────────────────────────────────────────────────────
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.15.1
+    container_name: mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # ── Tracing ───────────────────────────────────────────────────────────────────
   jaeger:
     image: jaegertracing/all-in-one:1.60
@@ -102,8 +144,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      vault:
-        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
     restart: "no"
 
   # ── API ───────────────────────────────────────────────────────────────────────
@@ -131,8 +173,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      vault:
-        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
       redis:
@@ -165,8 +207,8 @@ services:
     volumes:
       - ./models:/app/models:ro
     depends_on:
-      vault:
-        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
       minio:
         condition: service_healthy
     restart: unless-stopped
@@ -210,6 +252,17 @@ services:
       - ./demo/host:/usr/share/nginx/html:ro
     restart: unless-stopped
 
+  # ── Evil host (unauthorized origin — CSP demo) ────────────────────────────────
+  evil-host:
+    image: nginx:alpine
+    container_name: evil-host
+    ports:
+      - "8099:80"
+    volumes:
+      - ./demo/evil:/usr/share/nginx/html:ro
+    restart: unless-stopped
+
 volumes:
   db_data:
   minio_data:
+  mlflow_data:

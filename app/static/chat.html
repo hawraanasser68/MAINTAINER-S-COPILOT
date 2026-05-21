@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maintainer's Copilot</title>
+  <style>
+    :root {
+      --primary: #1f77b4;
+      --primary-dark: #1565a0;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #header {
+      background: var(--primary);
+      color: #fff;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    #header .avatar {
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    #header h1 { font-size: 15px; font-weight: 600; }
+    #header p  { font-size: 11px; opacity: 0.85; }
+    #auth-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      gap: 12px;
+    }
+    #auth-screen input {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid #ddd; border-radius: 6px;
+      font-size: 14px;
+    }
+    #auth-screen input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+    #auth-screen button {
+      width: 100%; padding: 10px;
+      background: var(--primary); color: #fff;
+      border: none; border-radius: 6px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer;
+    }
+    #auth-screen button:hover { background: var(--primary-dark); }
+    #auth-error { color: #c0392b; font-size: 12px; min-height: 16px; }
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .msg {
+      max-width: 84%;
+      padding: 9px 12px;
+      border-radius: 12px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: var(--primary);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.assistant {
+      align-self: flex-start;
+      background: #f1f3f5;
+      color: #212529;
+      border-bottom-left-radius: 4px;
+    }
+    .msg.system {
+      align-self: center;
+      font-size: 11px;
+      color: #888;
+      background: transparent;
+      padding: 2px 0;
+    }
+    .tool-badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #e8f4fb;
+      color: var(--primary);
+      margin-right: 4px;
+      margin-top: 5px;
+    }
+    .typing { display: flex; gap: 4px; align-items: center; padding: 10px 12px; }
+    .typing span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #aaa;
+      animation: bounce 1.2s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%,80%,100% { transform: translateY(0); }
+      40%          { transform: translateY(-6px); }
+    }
+    #input-bar {
+      border-top: 1px solid #eee;
+      padding: 10px 12px;
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+      background: #fff;
+    }
+    #input-bar textarea {
+      flex: 1;
+      resize: none;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      line-height: 1.4;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+    #input-bar textarea:focus { outline: 2px solid var(--primary); border-color: transparent; }
+    #send-btn {
+      width: 36px; height: 36px;
+      background: var(--primary); color: #fff;
+      border: none; border-radius: 8px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      align-self: flex-end;
+    }
+    #send-btn:hover { background: var(--primary-dark); }
+    #send-btn:disabled { background: #aaa; cursor: not-allowed; }
+    #send-btn svg { width: 16px; height: 16px; fill: white; }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div class="avatar">🔧</div>
+  <div>
+    <h1>Maintainer's Copilot</h1>
+    <p>scikit-learn issue assistant</p>
+  </div>
+</div>
+
+<div id="auth-screen">
+  <p style="font-size:13px;color:#555;text-align:center">Sign in to start chatting</p>
+  <input type="email"    id="auth-email"    placeholder="Email" autocomplete="email" />
+  <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
+  <div id="auth-error"></div>
+  <button id="login-btn">Log in</button>
+</div>
+
+<div id="chat-screen" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+  <div id="messages"></div>
+  <div id="input-bar">
+    <textarea id="msg-input" placeholder="Ask about a scikit-learn issue…" rows="1"></textarea>
+    <button id="send-btn" disabled aria-label="Send">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var params    = new URLSearchParams(location.search);
+  var API_URL   = params.get("apiUrl") || "http://localhost:8000";
+  var WIDGET_ID = params.get("widgetId") || "";
+
+  // Apply theme from URL param
+  var primaryColor = params.get("primaryColor");
+  if (primaryColor) {
+    document.documentElement.style.setProperty("--primary", primaryColor);
+    document.documentElement.style.setProperty("--primary-dark", primaryColor);
+  }
+
+  // Notify parent of current height (postMessage resize)
+  function notifyResize() {
+    try {
+      window.parent.postMessage(
+        { type: "mc-resize", height: document.documentElement.scrollHeight },
+        "*"
+      );
+    } catch (e) {}
+  }
+
+  window.addEventListener("load", notifyResize);
+
+  var jwt   = null;
+  var convId = null;
+
+  var authScreen   = document.getElementById("auth-screen");
+  var chatScreen   = document.getElementById("chat-screen");
+  var loginBtn     = document.getElementById("login-btn");
+  var authEmail    = document.getElementById("auth-email");
+  var authPassword = document.getElementById("auth-password");
+  var authError    = document.getElementById("auth-error");
+  var messages     = document.getElementById("messages");
+  var msgInput     = document.getElementById("msg-input");
+  var sendBtn      = document.getElementById("send-btn");
+
+  loginBtn.addEventListener("click", doLogin);
+  authPassword.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") doLogin();
+  });
+
+  async function doLogin() {
+    authError.textContent = "";
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Logging in…";
+    var body = new URLSearchParams();
+    body.append("username", authEmail.value.trim());
+    body.append("password", authPassword.value);
+    try {
+      var resp = await fetch(API_URL + "/auth/jwt/login", { method: "POST", body: body });
+      if (resp.ok) {
+        var data = await resp.json();
+        jwt = data.access_token;
+        showChat();
+      } else {
+        authError.textContent = "Invalid email or password.";
+      }
+    } catch (e) {
+      authError.textContent = "Cannot reach the server.";
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Log in";
+    }
+  }
+
+  function showChat() {
+    authScreen.style.display = "none";
+    chatScreen.style.display = "flex";
+    sendBtn.disabled = false;
+    addMessage("system", "Hello! Paste a scikit-learn issue or ask a question.");
+    msgInput.focus();
+    notifyResize();
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+  msgInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  msgInput.addEventListener("input", function () {
+    this.style.height = "auto";
+    this.style.height = Math.min(this.scrollHeight, 80) + "px";
+  });
+
+  async function sendMessage() {
+    var text = msgInput.value.trim();
+    if (!text || sendBtn.disabled) return;
+    addMessage("user", text);
+    msgInput.value = "";
+    msgInput.style.height = "auto";
+    sendBtn.disabled = true;
+    var typingEl = addTypingIndicator();
+    try {
+      var body = { message: text };
+      if (convId) body.conversation_id = convId;
+      var resp = await fetch(API_URL + "/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + jwt },
+        body: JSON.stringify(body),
+      });
+      typingEl.remove();
+      if (resp.status === 401) {
+        jwt = null;
+        authScreen.style.display = "flex";
+        chatScreen.style.display = "none";
+        addMessage("system", "Session expired — please log in again.");
+        return;
+      }
+      if (!resp.ok) { addMessage("system", "Error: " + resp.status + ". Please try again."); return; }
+      var data = await resp.json();
+      convId = data.conversation_id;
+      var msgEl = addMessage("assistant", data.reply);
+      if (data.tool_calls_made && data.tool_calls_made.length > 0) {
+        var badges = document.createElement("div");
+        data.tool_calls_made.forEach(function (tc) {
+          var b = document.createElement("span");
+          b.className = "tool-badge";
+          b.textContent = tc.tool;
+          badges.appendChild(b);
+        });
+        msgEl.appendChild(badges);
+      }
+    } catch (e) {
+      typingEl.remove();
+      addMessage("system", "Request failed. Check your connection.");
+    } finally {
+      sendBtn.disabled = false;
+      msgInput.focus();
+      notifyResize();
+    }
+  }
+
+  function addMessage(role, text) {
+    var el = document.createElement("div");
+    el.className = "msg " + role;
+    el.textContent = text;
+    messages.appendChild(el);
+    messages.scrollTop = messages.scrollHeight;
+    notifyResize();
+    return el;
+  }
+
+  function addTypingIndicator() {
+    var el = document.createElement("div");
+    el.className = "msg assistant typing";
+    el.innerHTML = "<span></span><span></span><span></span>";
+    messages.appendChild(el);
+    messages.scrollTop = messages.scrollHeight;
+    return el;
+  }
+})();
+</script>
+</body>
+</html>

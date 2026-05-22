@@ -211,6 +211,12 @@ services:
         condition: service_completed_successfully
       minio:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
     restart: unless-stopped
 
   # ── Chatbot (Streamlit) ────────────────────────────────────────────────────────

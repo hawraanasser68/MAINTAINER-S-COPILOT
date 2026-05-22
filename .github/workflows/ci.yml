@@ -203,7 +203,7 @@ jobs:
 
       - name: Start stack
         run: docker compose up -d --wait
-        timeout-minutes: 5
+        timeout-minutes: 10
 
       - name: Wait for API health
         run: |

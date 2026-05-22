@@ -108,8 +108,8 @@ services:
       test: ["CMD", "curl", "-sf", "http://localhost:5000/"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 10
+      start_period: 30s
 
   # ── Tracing ───────────────────────────────────────────────────────────────────
   jaeger:
